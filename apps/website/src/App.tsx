@@ -136,6 +136,8 @@ const VIEW_TO_PATH: Record<string, string> = {
   editorDash: "/editor-dash",
   login: "/login",
   register: "/register",
+  forgotPassword: "/forgot-password",
+  resetPassword: "/reset-password",
 };
 
 function parseLocation(pathname: string): { currentView: string; viewParam: string | null } {
@@ -160,6 +162,8 @@ function parseLocation(pathname: string): { currentView: string; viewParam: stri
   if (pathname === "/editor-dash/writers") return { currentView: "editorWriters", viewParam: null };
   if (pathname === "/login") return { currentView: "login", viewParam: null };
   if (pathname === "/register") return { currentView: "register", viewParam: null };
+  if (pathname === "/forgot-password") return { currentView: "forgotPassword", viewParam: null };
+  if (pathname === "/reset-password") return { currentView: "resetPassword", viewParam: null };
   if (pathname === "/writers") return { currentView: "writers", viewParam: null };
   const writersMatch = pathname.match(/^\/writers\/(.+)$/);
   if (writersMatch) return { currentView: "profile", viewParam: writersMatch[1] };
@@ -779,27 +783,59 @@ export default function App() {
           .select("*")
           .eq("id", session.user.id)
           .single()
-          .then(({ data }) => {
-            if (data) {
-              const meta = session.user.user_metadata ?? {};
-              const updates: Record<string, string> = {};
-              if (!data.display_name && meta.display_name) updates.display_name = meta.display_name;
-              if (!data.username && meta.username) updates.username = meta.username;
-              if (Object.keys(updates).length > 0) {
-                void supabase
-                  .from("profiles")
-                  .update(updates)
-                  .eq("id", session.user.id)
-                  .then(({ data: updated }) => {
-                    if (updated) Object.assign(data, updates);
-                  });
-                Object.assign(data, updates);
+          .then(
+            ({ data }) => {
+              if (data) {
+                const meta = session.user.user_metadata ?? {};
+                const updates: Record<string, string> = {};
+                const displayName = meta.display_name || meta.full_name || meta.name;
+                if (!data.display_name && displayName) updates.display_name = displayName;
+                if (!data.username && meta.username) updates.username = meta.username;
+                if (!data.avatar_url && meta.avatar_url) updates.avatar_url = meta.avatar_url;
+                if (Object.keys(updates).length > 0) {
+                  void supabase
+                    .from("profiles")
+                    .update(updates)
+                    .eq("id", session.user.id)
+                    .then(({ data: updated }) => {
+                      if (updated) Object.assign(data, updates);
+                    });
+                  Object.assign(data, updates);
+                }
+                setProfile(data);
+                setUserRole(data.role);
+              } else {
+                // プロフィールがDBに存在しない場合の初期データフォールバック
+                const meta = session.user.user_metadata ?? {};
+                const displayName = meta.display_name || meta.full_name || meta.name || null;
+                setProfile({
+                  id: session.user.id,
+                  email: session.user.email ?? "",
+                  role: "viewer",
+                  display_name: displayName,
+                  username: null,
+                  avatar_url: meta.avatar_url ?? null,
+                });
+                setUserRole("viewer");
               }
-              setProfile(data);
-              setUserRole(data.role);
-            }
-            setAuthLoading(false);
-          });
+              setAuthLoading(false);
+            },
+            () => {
+              // エラー時（DB未作成などの場合）もフォールバック
+              const meta = session.user.user_metadata ?? {};
+              const displayName = meta.display_name || meta.full_name || meta.name || null;
+              setProfile({
+                id: session.user.id,
+                email: session.user.email ?? "",
+                role: "viewer",
+                display_name: displayName,
+                username: null,
+                avatar_url: meta.avatar_url ?? null,
+              });
+              setUserRole("viewer");
+              setAuthLoading(false);
+            },
+          );
       } else {
         setProfile(null);
         setUserRole("guest");
@@ -2421,6 +2457,19 @@ export default function App() {
       setLoading(false);
     };
 
+    const handleGoogleLogin = async () => {
+      setLoading(true);
+      setError("");
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: {
+          redirectTo: window.location.origin,
+        },
+      });
+      if (error) setError(error.message);
+      setLoading(false);
+    };
+
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
         <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-8 w-full max-w-sm">
@@ -2434,19 +2483,61 @@ export default function App() {
               onChange={(e) => setEmail(e.target.value)}
               className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
-            <input
-              type="password"
-              placeholder="パスワード"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
+            <div className="space-y-1">
+              <input
+                type="password"
+                placeholder="パスワード"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+              <div className="text-right">
+                <button
+                  onClick={() => nav("/forgot-password")}
+                  className="text-xs text-blue-600 hover:underline font-bold"
+                >
+                  パスワードをお忘れの方はこちら
+                </button>
+              </div>
+            </div>
             <button
               onClick={handleLogin}
               disabled={loading}
               className="w-full py-3 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700 disabled:opacity-50"
             >
               {loading ? "ログイン中..." : "ログイン"}
+            </button>
+
+            <div className="relative my-4 flex py-1 items-center">
+              <div className="flex-grow border-t border-gray-200"></div>
+              <span className="flex-shrink mx-4 text-gray-400 text-xs font-bold">または</span>
+              <div className="flex-grow border-t border-gray-200"></div>
+            </div>
+
+            <button
+              onClick={handleGoogleLogin}
+              disabled={loading}
+              className="w-full py-3 border border-gray-300 text-gray-700 font-bold rounded-xl hover:bg-gray-50 flex items-center justify-center gap-2 bg-white transition-colors disabled:opacity-50"
+            >
+              <svg className="w-5 h-5" viewBox="0 0 24 24">
+                <path
+                  fill="#4285F4"
+                  d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v3.92h6.69c-.29 1.5-.1.84-2.48 2.43v2.01h4.02c2.34-2.15 3.69-5.32 3.69-8.29z"
+                />
+                <path
+                  fill="#34A853"
+                  d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.83-2.97c-1.08.73-2.46 1.16-4.1 1.16-3.15 0-5.81-2.13-6.76-5.01H1.17v3.1A11.988 11.988 0 0 0 12 24z"
+                />
+                <path
+                  fill="#FBBC05"
+                  d="M5.24 14.27a7.25 7.25 0 0 1 0-4.54V6.63H1.17a11.98 11.98 0 0 0 0 10.74l4.07-3.1z"
+                />
+                <path
+                  fill="#EA4335"
+                  d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0A11.988 11.988 0 0 0 1.17 6.63l4.07 3.1c.95-2.88 3.61-5.01 6.76-5.01z"
+                />
+              </svg>
+              Googleでログイン
             </button>
           </div>
           <div className="mt-4 text-center">
@@ -2557,6 +2648,332 @@ export default function App() {
     );
   };
 
+  const SetupProfileView = () => {
+    const [displayName, setDisplayName] = useState(profile?.display_name ?? "");
+    const [username, setUsername] = useState("");
+    const [error, setError] = useState("");
+    const [loading, setLoading] = useState(false);
+
+    const handleSave = async () => {
+      if (!displayName.trim()) {
+        setError("表示名を入力してください");
+        return;
+      }
+      if (username.trim().length < 3 || username.trim().length > 20) {
+        setError("ユーザー名は3文字以上20文字以内で入力してください");
+        return;
+      }
+      if (!/^[a-zA-Z0-9_]+$/.test(username.trim())) {
+        setError("ユーザー名は半角英数字とアンダースコアのみ使用できます");
+        return;
+      }
+
+      setLoading(true);
+      setError("");
+
+      try {
+        const { data: existing, error: checkErr } = await supabase
+          .from("profiles")
+          .select("id")
+          .eq("username", username.trim())
+          .maybeSingle();
+
+        if (checkErr) {
+          setError("エラーが発生しました。もう一度お試しください。");
+          setLoading(false);
+          return;
+        }
+
+        if (existing && existing.id !== profile?.id) {
+          setError("このユーザー名は既に使用されています");
+          setLoading(false);
+          return;
+        }
+
+        const { data: dbProfile, error: dbErr } = await supabase
+          .from("profiles")
+          .select("id")
+          .eq("id", profile?.id)
+          .maybeSingle();
+
+        if (dbErr) {
+          setError("エラーが発生しました。もう一度お試しください。");
+          setLoading(false);
+          return;
+        }
+
+        let saveError;
+        if (dbProfile) {
+          const { error } = await supabase
+            .from("profiles")
+            .update({
+              display_name: displayName.trim(),
+              username: username.trim(),
+            })
+            .eq("id", profile?.id);
+          saveError = error;
+        } else {
+          const { error } = await supabase.from("profiles").insert({
+            id: profile?.id,
+            email: profile?.email,
+            display_name: displayName.trim(),
+            username: username.trim(),
+            avatar_url: profile?.avatar_url,
+            role: profile?.role ?? "viewer",
+          });
+          saveError = error;
+        }
+
+        if (saveError) {
+          setError(saveError.message);
+        } else {
+          setProfile((p) =>
+            p
+              ? {
+                  ...p,
+                  display_name: displayName.trim(),
+                  username: username.trim(),
+                }
+              : null,
+          );
+          showToast("プロフィールを設定しました！");
+        }
+      } catch {
+        setError("通信エラーが発生しました");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    const handleLogout = async () => {
+      await supabase.auth.signOut();
+    };
+
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-8 w-full max-w-sm">
+          <h1 className="text-2xl font-bold text-center mb-2">プロフィールの初期設定</h1>
+          <p className="text-xs text-gray-500 text-center mb-6">
+            SHARE Questを利用するためにプロフィールを設定してください
+          </p>
+          {error && <p className="text-red-500 text-sm mb-4 text-center">{error}</p>}
+          <div className="space-y-4">
+            <div>
+              <label className="block text-xs font-bold text-gray-500 mb-1">表示名 *</label>
+              <input
+                type="text"
+                placeholder="例: 山田太郎"
+                value={displayName}
+                onChange={(e) => setDisplayName(e.target.value)}
+                className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-gray-500 mb-1">ユーザー名 *</label>
+              <input
+                type="text"
+                placeholder="例: tarou_yamada (英数字・_ )"
+                value={username}
+                onChange={(e) => setUsername(e.target.value.replace(/[^a-zA-Z0-9_]/g, ""))}
+                className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+              <p className="text-[10px] text-gray-400 mt-1">
+                半角英数字・アンダースコア3〜20文字。プロフィールURLに使用されます。
+              </p>
+            </div>
+            <button
+              onClick={handleSave}
+              disabled={loading}
+              className="w-full py-3 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700 disabled:opacity-50 mt-2"
+            >
+              {loading ? "設定中..." : "設定を完了する"}
+            </button>
+            <button
+              onClick={handleLogout}
+              className="w-full py-3 border border-gray-300 text-gray-600 font-bold rounded-xl hover:bg-gray-50 bg-white"
+            >
+              ログアウト
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  const ForgotPasswordView = () => {
+    const [email, setEmail] = useState("");
+    const [error, setError] = useState("");
+    const [success, setSuccess] = useState(false);
+    const [loading, setLoading] = useState(false);
+
+    const handleSendEmail = async () => {
+      if (!email.trim()) {
+        setError("メールアドレスを入力してください");
+        return;
+      }
+      setLoading(true);
+      setError("");
+      setSuccess(false);
+
+      const { error: resetErr } = await supabase.auth.resetPasswordForEmail(email.trim(), {
+        redirectTo: window.location.origin + "/reset-password",
+      });
+
+      if (resetErr) {
+        setError(resetErr.message);
+      } else {
+        setSuccess(true);
+        showToast("再設定用メールを送信しました");
+      }
+      setLoading(false);
+    };
+
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-8 w-full max-w-sm">
+          <h1 className="text-2xl font-bold text-center mb-2">パスワード再設定</h1>
+          <p className="text-xs text-gray-500 text-center mb-6 font-medium">
+            ご登録 of メールアドレスに再設定用リンクをお送りします
+          </p>
+          {error && <p className="text-red-500 text-sm mb-4 text-center">{error}</p>}
+          {success && (
+            <div className="bg-green-50 border border-green-200 rounded-xl p-4 mb-4 text-center">
+              <p className="text-sm font-bold text-green-800">送信完了</p>
+              <p className="text-xs text-green-600 mt-1">
+                メールをご確認のうえ、リンクから再設定を行ってください。
+              </p>
+            </div>
+          )}
+          <div className="space-y-4">
+            <input
+              type="email"
+              placeholder="メールアドレス"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+            <button
+              onClick={handleSendEmail}
+              disabled={loading}
+              className="w-full py-3 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700 disabled:opacity-50"
+            >
+              {loading ? "送信中..." : "再設定メールを送信"}
+            </button>
+            <button
+              onClick={() => navigate("login")}
+              className="w-full py-3 border border-gray-300 text-gray-600 font-bold rounded-xl hover:bg-gray-50 bg-white"
+            >
+              ログイン画面に戻る
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  const ResetPasswordView = () => {
+    const [password, setPassword] = useState("");
+    const [confirmPassword, setConfirmPassword] = useState("");
+    const [error, setError] = useState("");
+    const [loading, setLoading] = useState(false);
+    const [isAuthorized, setIsAuthorized] = useState<boolean | null>(null);
+
+    useEffect(() => {
+      void supabase.auth.getSession().then(({ data: { session } }) => {
+        setIsAuthorized(session !== null);
+      });
+    }, []);
+
+    const handleResetPassword = async () => {
+      if (password.length < 6) {
+        setError("パスワードは6文字以上で入力してください");
+        return;
+      }
+      if (password !== confirmPassword) {
+        setError("パスワードが一致しません");
+        return;
+      }
+
+      setLoading(true);
+      setError("");
+
+      const { error: updateErr } = await supabase.auth.updateUser({ password });
+
+      if (updateErr) {
+        setError(updateErr.message);
+      } else {
+        showToast("パスワードを更新しました。新しいパスワードでログインしてください。");
+        await supabase.auth.signOut();
+        navigate("login");
+      }
+      setLoading(false);
+    };
+
+    if (isAuthorized === null) {
+      return (
+        <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+          <p className="text-sm text-gray-500 font-bold">確認中...</p>
+        </div>
+      );
+    }
+
+    if (isAuthorized === false) {
+      return (
+        <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-8 w-full max-w-sm text-center">
+            <h1 className="text-2xl font-bold text-red-600 mb-4">エラー</h1>
+            <p className="text-sm text-gray-600 mb-6 font-medium">
+              無効なアクセス、またはリンクの有効期限が切れています。パスワード再設定メールのリンクから再度アクセスしてください。
+            </p>
+            <button
+              onClick={() => navigate("login")}
+              className="w-full py-3 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700"
+            >
+              ログイン画面に戻る
+            </button>
+          </div>
+        </div>
+      );
+    }
+
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-8 w-full max-w-sm">
+          <h1 className="text-2xl font-bold text-center mb-2">新しいパスワードの設定</h1>
+          <p className="text-xs text-gray-500 text-center mb-6 font-medium">
+            新しいパスワードを入力してください
+          </p>
+          {error && <p className="text-red-500 text-sm mb-4 text-center">{error}</p>}
+          <div className="space-y-4">
+            <input
+              type="password"
+              placeholder="新しいパスワード（6文字以上）"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+            <input
+              type="password"
+              placeholder="新しいパスワード（確認）"
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+            <button
+              onClick={handleResetPassword}
+              disabled={loading}
+              className="w-full py-3 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700 disabled:opacity-50"
+            >
+              {loading ? "更新中..." : "パスワードを更新"}
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  const needsProfileSetup = profile !== null && (!profile.username || !profile.display_name);
+
   // --- ヘッダー非表示判定 ---
   const hideHeader = [
     "article",
@@ -2570,176 +2987,189 @@ export default function App() {
     "editorWriters",
     "login",
     "register",
+    "forgotPassword",
+    "resetPassword",
+    "setupProfile",
   ].includes(currentView);
 
   return (
     <div className="min-h-screen bg-gray-50 pb-20 sm:pb-10 text-gray-800 font-sans selection:bg-blue-200">
-      {!hideHeader && <Header />}
-      {!hideHeader && <MobileNav />}
+      {!hideHeader && !needsProfileSetup && <Header />}
+      {!hideHeader && !needsProfileSetup && <MobileNav />}
       <main className="max-w-6xl mx-auto flex-1">
-        {currentView === "notFound" && <NotFoundView />}
-        {currentView === "home" && <HomeView />}
-        {currentView === "article" && <ArticleView />}
-        {currentView === "search" && <SearchView />}
-        {currentView === "writers" && <WritersView />}
-        {currentView === "profile" && <ProfileView />}
-        {currentView === "favorites" && <FavoritesView />}
-        {currentView === "settings" && <SettingsView />}
-        {currentView === "about" && <AboutView />}
-        {currentView === "writerNew" && (userRole === "writer" || userRole === "editor") && (
-          <ArticleEditorPage
-            editingId={null}
-            articles={articles}
-            setArticles={setArticles}
-            seriesList={seriesList}
-            currentUserId={currentUserId}
-            showToast={showToast}
-            navigate={navigate}
-            draftTitle={draftTitle}
-            setDraftTitle={setDraftTitle}
-            draftContent={draftContent}
-            setDraftContent={setDraftContent}
-            draftColor={draftColor}
-            setDraftColor={setDraftColor}
-            draftTags={draftTags}
-            setDraftTags={setDraftTags}
-            draftSeriesId={draftSeriesId}
-            setDraftSeriesId={setDraftSeriesId}
-            draftEpisodeNumber={draftEpisodeNumber}
-            setDraftEpisodeNumber={setDraftEpisodeNumber}
-            draftSummary={draftSummary}
-            setDraftSummary={setDraftSummary}
-            draftTagInput={draftTagInput}
-            setDraftTagInput={setDraftTagInput}
-            editorSaving={editorSaving}
-            setEditorSaving={setEditorSaving}
-            editorShowPreview={editorShowPreview}
-            setEditorShowPreview={setEditorShowPreview}
-            draftThumbnailUrl={draftThumbnailUrl}
-            setDraftThumbnailUrl={setDraftThumbnailUrl}
-            editorThumbnailUploading={editorThumbnailUploading}
-            setEditorThumbnailUploading={setEditorThumbnailUploading}
-          />
+        {needsProfileSetup ? (
+          <SetupProfileView />
+        ) : (
+          <>
+            {currentView === "notFound" && <NotFoundView />}
+            {currentView === "home" && <HomeView />}
+            {currentView === "article" && <ArticleView />}
+            {currentView === "search" && <SearchView />}
+            {currentView === "writers" && <WritersView />}
+            {currentView === "profile" && <ProfileView />}
+            {currentView === "favorites" && <FavoritesView />}
+            {currentView === "settings" && <SettingsView />}
+            {currentView === "about" && <AboutView />}
+            {currentView === "writerNew" && (userRole === "writer" || userRole === "editor") && (
+              <ArticleEditorPage
+                editingId={null}
+                articles={articles}
+                setArticles={setArticles}
+                seriesList={seriesList}
+                currentUserId={currentUserId}
+                showToast={showToast}
+                navigate={navigate}
+                draftTitle={draftTitle}
+                setDraftTitle={setDraftTitle}
+                draftContent={draftContent}
+                setDraftContent={setDraftContent}
+                draftColor={draftColor}
+                setDraftColor={setDraftColor}
+                draftTags={draftTags}
+                setDraftTags={setDraftTags}
+                draftSeriesId={draftSeriesId}
+                setDraftSeriesId={setDraftSeriesId}
+                draftEpisodeNumber={draftEpisodeNumber}
+                setDraftEpisodeNumber={setDraftEpisodeNumber}
+                draftSummary={draftSummary}
+                setDraftSummary={setDraftSummary}
+                draftTagInput={draftTagInput}
+                setDraftTagInput={setDraftTagInput}
+                editorSaving={editorSaving}
+                setEditorSaving={setEditorSaving}
+                editorShowPreview={editorShowPreview}
+                setEditorShowPreview={setEditorShowPreview}
+                draftThumbnailUrl={draftThumbnailUrl}
+                setDraftThumbnailUrl={setDraftThumbnailUrl}
+                editorThumbnailUploading={editorThumbnailUploading}
+                setEditorThumbnailUploading={setEditorThumbnailUploading}
+              />
+            )}
+            {currentView === "writerEdit" && (userRole === "writer" || userRole === "editor") && (
+              <ArticleEditorPage
+                editingId={viewParam}
+                articles={articles}
+                setArticles={setArticles}
+                seriesList={seriesList}
+                currentUserId={currentUserId}
+                showToast={showToast}
+                navigate={navigate}
+                draftTitle={draftTitle}
+                setDraftTitle={setDraftTitle}
+                draftContent={draftContent}
+                setDraftContent={setDraftContent}
+                draftColor={draftColor}
+                setDraftColor={setDraftColor}
+                draftTags={draftTags}
+                setDraftTags={setDraftTags}
+                draftSeriesId={draftSeriesId}
+                setDraftSeriesId={setDraftSeriesId}
+                draftEpisodeNumber={draftEpisodeNumber}
+                setDraftEpisodeNumber={setDraftEpisodeNumber}
+                draftSummary={draftSummary}
+                setDraftSummary={setDraftSummary}
+                draftTagInput={draftTagInput}
+                setDraftTagInput={setDraftTagInput}
+                editorSaving={editorSaving}
+                setEditorSaving={setEditorSaving}
+                editorShowPreview={editorShowPreview}
+                setEditorShowPreview={setEditorShowPreview}
+                draftThumbnailUrl={draftThumbnailUrl}
+                setDraftThumbnailUrl={setDraftThumbnailUrl}
+                editorThumbnailUploading={editorThumbnailUploading}
+                setEditorThumbnailUploading={setEditorThumbnailUploading}
+              />
+            )}
+            {currentView === "writerDash" && (userRole === "writer" || userRole === "editor") && (
+              <WriterDashboard />
+            )}
+            {currentView === "writerSeries" && (userRole === "writer" || userRole === "editor") && (
+              <WriterSeriesPage />
+            )}
+            {currentView === "editorDash" &&
+              (userRole === "editor" ? <EditorDashboard /> : <AccessDeniedView />)}
+            {currentView === "editorArticles" &&
+              (userRole === "editor" ? <EditorArticlesView /> : <AccessDeniedView />)}
+            {currentView === "editorRecommend" &&
+              (userRole === "editor" ? <EditorRecommendView /> : <AccessDeniedView />)}
+            {currentView === "editorWriters" &&
+              (userRole === "editor" ? <EditorWritersView /> : <AccessDeniedView />)}
+            {currentView === "login" && <LoginView />}
+            {currentView === "register" && <RegisterView />}
+            {currentView === "privacy" && <PrivacyView />}
+            {currentView === "terms" && <TermsView />}
+            {currentView === "contact" && <ContactView />}
+            {currentView === "forgotPassword" && <ForgotPasswordView />}
+            {currentView === "resetPassword" && <ResetPasswordView />}
+          </>
         )}
-        {currentView === "writerEdit" && (userRole === "writer" || userRole === "editor") && (
-          <ArticleEditorPage
-            editingId={viewParam}
-            articles={articles}
-            setArticles={setArticles}
-            seriesList={seriesList}
-            currentUserId={currentUserId}
-            showToast={showToast}
-            navigate={navigate}
-            draftTitle={draftTitle}
-            setDraftTitle={setDraftTitle}
-            draftContent={draftContent}
-            setDraftContent={setDraftContent}
-            draftColor={draftColor}
-            setDraftColor={setDraftColor}
-            draftTags={draftTags}
-            setDraftTags={setDraftTags}
-            draftSeriesId={draftSeriesId}
-            setDraftSeriesId={setDraftSeriesId}
-            draftEpisodeNumber={draftEpisodeNumber}
-            setDraftEpisodeNumber={setDraftEpisodeNumber}
-            draftSummary={draftSummary}
-            setDraftSummary={setDraftSummary}
-            draftTagInput={draftTagInput}
-            setDraftTagInput={setDraftTagInput}
-            editorSaving={editorSaving}
-            setEditorSaving={setEditorSaving}
-            editorShowPreview={editorShowPreview}
-            setEditorShowPreview={setEditorShowPreview}
-            draftThumbnailUrl={draftThumbnailUrl}
-            setDraftThumbnailUrl={setDraftThumbnailUrl}
-            editorThumbnailUploading={editorThumbnailUploading}
-            setEditorThumbnailUploading={setEditorThumbnailUploading}
-          />
-        )}
-        {currentView === "writerDash" && (userRole === "writer" || userRole === "editor") && (
-          <WriterDashboard />
-        )}
-        {currentView === "writerSeries" && (userRole === "writer" || userRole === "editor") && (
-          <WriterSeriesPage />
-        )}
-        {currentView === "editorDash" &&
-          (userRole === "editor" ? <EditorDashboard /> : <AccessDeniedView />)}
-        {currentView === "editorArticles" &&
-          (userRole === "editor" ? <EditorArticlesView /> : <AccessDeniedView />)}
-        {currentView === "editorRecommend" &&
-          (userRole === "editor" ? <EditorRecommendView /> : <AccessDeniedView />)}
-        {currentView === "editorWriters" &&
-          (userRole === "editor" ? <EditorWritersView /> : <AccessDeniedView />)}
-        {currentView === "login" && <LoginView />}
-        {currentView === "register" && <RegisterView />}
-        {currentView === "privacy" && <PrivacyView />}
-        {currentView === "terms" && <TermsView />}
-        {currentView === "contact" && <ContactView />}
       </main>
-      <footer className="bg-gray-50 border-t border-gray-200 mt-8">
-        <div className="max-w-6xl mx-auto px-4 py-8">
-          <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-8 mb-6">
-            <div className="flex flex-col gap-2">
-              <div
-                className="flex items-center gap-2 cursor-pointer"
-                onClick={() => navigate("home")}
-              >
-                <LogoIcon className="w-8 h-8" />
-                <img src={imgTitle} className="h-10 object-contain" alt="SHARE Quest" />
-              </div>
-              <p className="text-xs text-gray-500 leading-relaxed max-w-[200px]">
-                学びの「楽しい！」をつなげる、
-                <br />
-                ライターと読者をつなぐ記事プラットフォーム
-              </p>
-            </div>
-            <div className="flex flex-col gap-2">
-              <p className="text-xs font-bold text-gray-700 mb-1">メニュー</p>
-              {[
-                { label: "About Us", view: "about" },
-                { label: "プライバシーポリシー", view: "privacy" },
-                { label: "利用規約", view: "terms" },
-                { label: "お問い合わせ", view: "contact" },
-              ].map(({ label, view }) => (
-                <button
-                  key={view}
-                  onClick={() => navigate(view)}
-                  className="text-xs text-gray-500 hover:text-blue-600 transition-colors text-left"
+      {!hideHeader && !needsProfileSetup && (
+        <footer className="bg-gray-50 border-t border-gray-200 mt-8">
+          <div className="max-w-6xl mx-auto px-4 py-8">
+            <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-8 mb-6">
+              <div className="flex flex-col gap-2">
+                <div
+                  className="flex items-center gap-2 cursor-pointer"
+                  onClick={() => navigate("home")}
                 >
-                  {label}
-                </button>
-              ))}
+                  <LogoIcon className="w-8 h-8" />
+                  <img src={imgTitle} className="h-10 object-contain" alt="SHARE Quest" />
+                </div>
+                <p className="text-xs text-gray-500 leading-relaxed max-w-[200px]">
+                  学びの「楽しい！」をつなげる、
+                  <br />
+                  ライターと読者をつなぐ記事プラットフォーム
+                </p>
+              </div>
+              <div className="flex flex-col gap-2">
+                <p className="text-xs font-bold text-gray-700 mb-1">メニュー</p>
+                {[
+                  { label: "About Us", view: "about" },
+                  { label: "プライバシーポリシー", view: "privacy" },
+                  { label: "利用規約", view: "terms" },
+                  { label: "お問い合わせ", view: "contact" },
+                ].map(({ label, view }) => (
+                  <button
+                    key={view}
+                    onClick={() => navigate(view)}
+                    className="text-xs text-gray-500 hover:text-blue-600 transition-colors text-left"
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+              <div className="flex flex-col gap-2">
+                <p className="text-xs font-bold text-gray-700 mb-1">SNS</p>
+
+                <a
+                  href="https://x.com/SHARE_Quest_Off"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-1.5 text-xs text-gray-500 hover:text-black transition-colors"
+                >
+                  <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.746l7.73-8.835L1.254 2.25H8.08l4.259 5.63 5.905-5.63Zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+                  </svg>
+                  @SHARE_Quest_Off
+                </a>
+
+                <a
+                  href="https://x.com/SHARE_Quest_Off"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-xs text-blue-500 hover:text-blue-700 transition-colors"
+                >
+                  ライター応募はXのDMへ →
+                </a>
+              </div>
             </div>
-            <div className="flex flex-col gap-2">
-              <p className="text-xs font-bold text-gray-700 mb-1">SNS</p>
-
-              <a
-                href="https://x.com/SHARE_Quest_Off"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center gap-1.5 text-xs text-gray-500 hover:text-black transition-colors"
-              >
-                <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.746l7.73-8.835L1.254 2.25H8.08l4.259 5.63 5.905-5.63Zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
-                </svg>
-                @SHARE_Quest_Off
-              </a>
-
-              <a
-                href="https://x.com/SHARE_Quest_Off"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-xs text-blue-500 hover:text-blue-700 transition-colors"
-              >
-                ライター応募はXのDMへ →
-              </a>
+            <div className="border-t border-gray-200 pt-4">
+              <p className="text-xs text-gray-400">© 2026 SHARE Quest. All rights reserved.</p>
             </div>
           </div>
-          <div className="border-t border-gray-200 pt-4">
-            <p className="text-xs text-gray-400">© 2026 SHARE Quest. All rights reserved.</p>
-          </div>
-        </div>
-      </footer>
+        </footer>
+      )}
       {toastMessage && (
         <div className="fixed bottom-8 left-1/2 -translate-x-1/2 bg-gray-900/90 backdrop-blur text-white px-6 py-3 rounded-full shadow-2xl z-50 animate-in slide-in-from-bottom-5 fade-in duration-300 flex items-center gap-3 text-sm font-bold whitespace-nowrap">
           {toastMessage}
