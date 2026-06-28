@@ -1,0 +1,105 @@
+import { useState, useEffect } from "react";
+import { supabase } from "../../supabase";
+import { useApp } from "../../context/AppContext";
+
+export const ResetPasswordView = () => {
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [isAuthorized, setIsAuthorized] = useState<boolean | null>(null);
+  const { navigate, showToast } = useApp();
+
+  useEffect(() => {
+    void supabase.auth.getSession().then(({ data: { session } }) => {
+      setIsAuthorized(session !== null);
+    });
+  }, []);
+
+  const handleResetPassword = async () => {
+    if (password.length < 6) {
+      setError("パスワードは6文字以上で入力してください");
+      return;
+    }
+    if (password !== confirmPassword) {
+      setError("パスワードが一致しません");
+      return;
+    }
+
+    setLoading(true);
+    setError("");
+
+    const { error: updateErr } = await supabase.auth.updateUser({ password });
+
+    if (updateErr) {
+      setError(updateErr.message);
+    } else {
+      showToast("パスワードを更新しました。新しいパスワードでログインしてください。");
+      await supabase.auth.signOut();
+      navigate("login");
+    }
+    setLoading(false);
+  };
+
+  if (isAuthorized === null) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <p className="text-sm text-gray-500 font-bold">確認中...</p>
+      </div>
+    );
+  }
+
+  if (isAuthorized === false) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-8 w-full max-w-sm text-center">
+          <h1 className="text-2xl font-bold text-red-600 mb-4">エラー</h1>
+          <p className="text-sm text-gray-600 mb-6 font-medium">
+            無効なアクセス、またはリンクの有効期限が切れています。パスワード再設定メールのリンクから再度アクセスしてください。
+          </p>
+          <button
+            onClick={() => navigate("login")}
+            className="w-full py-3 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700"
+          >
+            ログイン画面に戻る
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+      <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-8 w-full max-w-sm">
+        <h1 className="text-2xl font-bold text-center mb-2">新しいパスワードの設定</h1>
+        <p className="text-xs text-gray-500 text-center mb-6 font-medium">
+          新しいパスワードを入力してください
+        </p>
+        {error && <p className="text-red-500 text-sm mb-4 text-center">{error}</p>}
+        <div className="space-y-4">
+          <input
+            type="password"
+            placeholder="新しいパスワード（6文字以上）"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+          <input
+            type="password"
+            placeholder="新しいパスワード（確認）"
+            value={confirmPassword}
+            onChange={(e) => setConfirmPassword(e.target.value)}
+            className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+          <button
+            onClick={handleResetPassword}
+            disabled={loading}
+            className="w-full py-3 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700 disabled:opacity-50"
+          >
+            {loading ? "更新中..." : "パスワードを更新"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
