@@ -31,3 +31,45 @@ SHARE Questのライターが、「楽しい」「おもしろい」と感じた
 ## お問い合わせ
 
 ご質問・ご意見は https://share-quest.vercel.app/contact からどうぞ。
+
+## 開発とディレクトリ構造 (Development & Architecture)
+
+フロントエンドは画面ごとにファイルを分割・モジュール化し、関心の分離を行っています。
+
+### ディレクトリ構造
+
+```text
+apps/website/src/
+├── App.tsx             # 記事エディター画面、共通レイアウト、メインルーティング定義
+├── main.tsx            # エントリーポイント
+├── supabase.ts         # Supabase クライアント初期化および型定義
+├── assets/             # アセットファイル（画像・アイコン）
+├── components/         # 共有コンポーネント（例: ArticleCard.tsx）
+├── context/
+│   └── AppContext.tsx  # グローバル状態（認証、お気に入り、表示フォントサイズ等）の Context / Provider
+├── utils/
+│   └── sanitize.ts     # HTMLサニタイズ用のユーティリティ
+└── views/              # 閲覧者・一般読者向け画面ビュー
+    ├── HomeView.tsx
+    ├── ArticleView.tsx
+    ├── SearchView.tsx
+    ├── WritersView.tsx
+    ├── ProfileView.tsx
+    ├── FavoritesView.tsx
+    ├── SettingsView.tsx
+    ├── AboutView.tsx
+    ├── PrivacyView.tsx
+    ├── TermsView.tsx
+    └── dashboard/      # ライター・編集者向け管理画面ビュー
+        ├── AccessDeniedView.tsx
+        ├── WriterDashboard.tsx
+        ├── WriterSeriesPage.tsx
+        ├── EditorDashboard.tsx
+        ├── EditorArticlesView.tsx
+        ├── EditorRecommendView.tsx
+        └── EditorWritersView.tsx
+```
+
+### 状態管理の仕組み (`AppContext`)
+
+各画面（`views`）は、`useApp()` フックを通じて [AppContext.tsx](file:///home/noimzip/ダウンロード/share-quest-MVP/apps/website/src/context/AppContext.tsx) から必要なグローバル状態（ユーザー情報、お気に入りリスト、記事データなど）や関数を取得する設計に統一されています。これにより、Props Drilling を防ぎ、コードの可読性とメンテナンス性を向上させています。
