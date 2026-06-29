@@ -8,7 +8,7 @@ import { sanitizeHtml } from "./utils/sanitize";
 import { ContactView } from "./components/ContactView";
 
 // App Context
-import { AppContext } from "./context/AppContext";
+import { AppContext, useApp } from "./context/AppContext";
 import type { AppContextType } from "./context/AppContext";
 
 // Views & Components
@@ -280,6 +280,7 @@ const ArticleEditorPage = ({
   editorThumbnailUploading: boolean;
   setEditorThumbnailUploading: (v: boolean) => void;
 }) => {
+  const { getFontSizeClass } = useApp();
   const editingArticle = editingId ? (articles.find((a) => a.id === editingId) ?? null) : null;
   const [formTitle, setFormTitle] = [draftTitle, setDraftTitle];
   const [formContent, setFormContent] = [draftContent, setDraftContent];
@@ -600,7 +601,7 @@ const ArticleEditorPage = ({
             </div>
             {formContent ? (
               <div
-                className="text-sm text-gray-700 leading-loose prose prose-sm max-w-none"
+                className={`text-gray-800 leading-loose article-content ${getFontSizeClass()}`}
                 dangerouslySetInnerHTML={{ __html: sanitizeHtml(formContent) }}
               />
             ) : (
@@ -933,8 +934,14 @@ export default function App() {
         }
       });
   }, []);
-  const [fontSize, setFontSize] = useState("medium");
+  const [fontSize, setFontSize] = useState(
+    () => localStorage.getItem("share_quest_font_size") || "medium",
+  );
   const [favorites, setFavorites] = useState<string[]>([]);
+
+  useEffect(() => {
+    localStorage.setItem("share_quest_font_size", fontSize);
+  }, [fontSize]);
 
   useEffect(() => {
     if (userRole === "guest" || !currentUserId) return;
@@ -1059,9 +1066,11 @@ export default function App() {
   };
 
   const getFontSizeClass = () =>
-    ({ small: "text-sm", medium: "text-base", large: "text-lg" })[
-      fontSize as "small" | "medium" | "large"
-    ] ?? "text-base";
+    ({
+      small: "article-size-small",
+      medium: "article-size-medium",
+      large: "article-size-large",
+    })[fontSize as "small" | "medium" | "large"] ?? "article-size-medium";
 
   const toggleFavorite = (articleId: string) => {
     if (userRole === "guest") {

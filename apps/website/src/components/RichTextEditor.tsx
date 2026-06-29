@@ -8,7 +8,7 @@ import { Color } from "@tiptap/extension-color";
 import FontFamily from "@tiptap/extension-font-family";
 import Placeholder from "@tiptap/extension-placeholder";
 import TextAlign from "@tiptap/extension-text-align";
-import { Extension } from "@tiptap/core";
+import { Extension, Node as TipTapNode, mergeAttributes } from "@tiptap/core";
 import { useEffect, useCallback, useRef, useState } from "react";
 
 const FontSize = Extension.create({
@@ -43,6 +43,65 @@ const FontSize = Extension.create({
         () =>
         ({ chain }: any) =>
           chain().setMark("textStyle", { fontSize: null }).removeEmptyTextStyle().run(),
+    } as any;
+  },
+});
+
+const CustomFrame = TipTapNode.create({
+  name: "customFrame",
+  group: "block",
+  content: "block+",
+  defining: true,
+  addAttributes() {
+    return {
+      type: {
+        default: "theme",
+        parseHTML: (element) => element.getAttribute("data-type"),
+        renderHTML: (attributes) => ({ "data-type": attributes.type }),
+      },
+    };
+  },
+  parseHTML() {
+    return [{ tag: "div[data-type]" }];
+  },
+  renderHTML({ node, HTMLAttributes }) {
+    const type = node.attrs.type;
+    let className = "custom-frame rounded-r-xl ";
+    let title = "";
+    if (type === "theme") {
+      className += "custom-frame-theme";
+      title = "📌 テーマ";
+    } else if (type === "verification") {
+      className += "custom-frame-verification";
+      title = "🔍 検証";
+    } else if (type === "summary") {
+      className += "custom-frame-summary";
+      title = "💡 まとめ";
+    }
+    return [
+      "div",
+      mergeAttributes(HTMLAttributes, { class: className }),
+      ["div", { class: "custom-frame-title", contenteditable: "false" }, title],
+      ["div", { class: "custom-frame-body" }, 0],
+    ];
+  },
+  addCommands() {
+    return {
+      setCustomFrame:
+        (type: string) =>
+        ({ commands }: any) => {
+          return commands.wrapIn(this.name, { type });
+        },
+      unsetCustomFrame:
+        () =>
+        ({ commands }: any) => {
+          return commands.lift(this.name);
+        },
+      toggleCustomFrame:
+        (type: string) =>
+        ({ commands }: any) => {
+          return commands.toggleWrap(this.name, { type });
+        },
     } as any;
   },
 });
@@ -102,13 +161,14 @@ export default function RichTextEditor({ content, onChange, placeholder }: Props
       Color,
       FontFamily,
       FontSize,
+      CustomFrame,
       TextAlign.configure({ types: ["heading", "paragraph"] }),
       Placeholder.configure({ placeholder: placeholder ?? "本文を入力してください..." }),
     ],
     content,
     onUpdate: ({ editor }) => onChange(editor.getHTML()),
     editorProps: {
-      attributes: { class: "prose prose-sm max-w-none min-h-[500px] p-4 focus:outline-none" },
+      attributes: { class: "article-content min-h-[500px] p-4 focus:outline-none" },
     },
   });
 
@@ -226,6 +286,31 @@ export default function RichTextEditor({ content, onChange, placeholder }: Props
               {s}px
             </option>
           ))}
+        </select>
+        <select
+          className="text-sm border border-gray-200 rounded px-2 py-1 bg-white text-gray-700 mr-1"
+          value={
+            editor.isActive("customFrame", { type: "theme" })
+              ? "theme"
+              : editor.isActive("customFrame", { type: "verification" })
+                ? "verification"
+                : editor.isActive("customFrame", { type: "summary" })
+                  ? "summary"
+                  : ""
+          }
+          onChange={(e) => {
+            const v = e.target.value;
+            if (!v) {
+              (editor.chain().focus() as any).unsetCustomFrame().run();
+            } else {
+              (editor.chain().focus() as any).toggleCustomFrame(v).run();
+            }
+          }}
+        >
+          <option value="">枠なし</option>
+          <option value="theme">📌 テーマ枠</option>
+          <option value="verification">🔍 検証枠</option>
+          <option value="summary">💡 まとめ枠</option>
         </select>
         <Div />
         <TB
@@ -456,18 +541,6 @@ export default function RichTextEditor({ content, onChange, placeholder }: Props
       </div>
       <style>{`
         .ProseMirror p.is-editor-empty:first-child::before { content: attr(data-placeholder); float: left; color: #adb5bd; pointer-events: none; height: 0; }
-        .ProseMirror h1 { font-size: 2em; font-weight: bold; margin: 0.5em 0; }
-        .ProseMirror h2 { font-size: 1.5em; font-weight: bold; margin: 0.5em 0; }
-        .ProseMirror h3 { font-size: 1.25em; font-weight: bold; margin: 0.5em 0; }
-        .ProseMirror ul { list-style-type: disc; padding-left: 1.5em; }
-        .ProseMirror ol { list-style-type: decimal; padding-left: 1.5em; }
-        .ProseMirror blockquote { border-left: 4px solid #e5e7eb; padding-left: 1em; color: #6b7280; margin: 0.5em 0; }
-        .ProseMirror pre { background: #1f2937; color: #f3f4f6; padding: 1em; border-radius: 0.5em; font-family: monospace; overflow-x: auto; }
-        .ProseMirror code { background: #f3f4f6; padding: 0.2em 0.4em; border-radius: 0.25em; font-family: monospace; font-size: 0.9em; }
-        .ProseMirror hr { border: none; border-top: 2px solid #e5e7eb; margin: 1em 0; }
-        .ProseMirror p { margin: 0.25em 0; line-height: 1.75; }
-        .ProseMirror img { max-width: 100%; border-radius: 0.5em; }
-        .ProseMirror a { color: #3b82f6; text-decoration: underline; }
       `}</style>
       <EditorContent editor={editor} />
     </div>

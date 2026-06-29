@@ -4,7 +4,10 @@ import { supabase } from "../../supabase";
 import { ChevronLeft, X } from "lucide-react";
 import type { Article } from "../../App";
 import { useNavigate } from "react-router-dom";
+import { useApp } from "../../context/AppContext";
+
 export function EditorArticlesView() {
+  const { getFontSizeClass } = useApp();
   const [articles, setArticles] = useState<Article[]>([]);
   const [loading, setLoading] = useState(true);
   const [previewArticle, setPreviewArticle] = useState<Article | null>(null);
@@ -118,7 +121,7 @@ export function EditorArticlesView() {
                 <X className="w-5 h-5 text-gray-500" />
               </button>
             </div>
-            <div className="overflow-y-auto p-5 prose prose-sm max-w-none">
+            <div className={`overflow-y-auto p-5 article-content ${getFontSizeClass()}`}>
               {previewArticle.content ? (
                 <div dangerouslySetInnerHTML={{ __html: sanitizeHtml(previewArticle.content) }} />
               ) : (

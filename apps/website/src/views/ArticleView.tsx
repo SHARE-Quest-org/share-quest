@@ -125,9 +125,7 @@ export const ArticleView = () => {
             </span>
           </div>
         )}
-        <div
-          className={`py-4 text-gray-800 whitespace-pre-wrap leading-loose ${getFontSizeClass()}`}
-        >
+        <div className={`py-4 text-gray-800 leading-loose article-content ${getFontSizeClass()}`}>
           {article.content ? (
             <div dangerouslySetInnerHTML={{ __html: sanitizeHtml(article.content) }} />
           ) : (
