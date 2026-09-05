@@ -265,9 +265,23 @@ function AvatarUpload({
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState("");
 
+  const ALLOWED_AVATAR_TYPES: Record<string, string> = {
+    "image/jpeg": "jpg",
+    "image/png": "png",
+    "image/webp": "webp",
+    "image/gif": "gif",
+  };
+
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !profile) return;
+
+    const ext = ALLOWED_AVATAR_TYPES[file.type];
+    if (!ext) {
+      setError("JPEG、PNG、WebP、GIF形式の画像を選択してください");
+      return;
+    }
+
     if (file.size > 2 * 1024 * 1024) {
       setError("2MB以下の画像を選択してください");
       return;
@@ -276,7 +290,6 @@ function AvatarUpload({
     setUploading(true);
     setError("");
 
-    const ext = file.name.split(".").pop();
     const filePath = `${profile.id}/avatar.${ext}`;
 
     const { error: uploadError } = await supabase.storage
@@ -314,13 +327,13 @@ function AvatarUpload({
             {uploading ? "アップロード中..." : "画像を変更"}
             <input
               type="file"
-              accept="image/*"
+              accept="image/jpeg,image/png,image/webp,image/gif"
               className="hidden"
               onChange={handleFileChange}
               disabled={uploading}
             />
           </label>
-          <p className="text-xs text-gray-400 mt-1">JPG / PNG / GIF・2MB以下</p>
+          <p className="text-xs text-gray-400 mt-1">JPG / PNG / WebP / GIF・2MB以下</p>
           {error && <p className="text-xs text-red-500 mt-1">{error}</p>}
         </div>
       </div>
