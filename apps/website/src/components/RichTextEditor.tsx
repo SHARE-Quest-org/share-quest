@@ -173,8 +173,16 @@ export default function RichTextEditor({ content, onChange, placeholder }: Props
   });
 
   useEffect(() => {
-    if (editor && content !== editor.getHTML()) {
-      editor.commands.setContent(content);
+    if (!editor) return;
+    // ユーザーが編集中（フォーカス中）は外部からの再セットによるカーソル飛びを防止
+    if (editor.isFocused) return;
+
+    const isCurrentEmpty = editor.isEmpty;
+    const isNewEmpty = !content || content === "<p></p>";
+    if (isCurrentEmpty && isNewEmpty) return;
+
+    if (content !== editor.getHTML()) {
+      editor.commands.setContent(content, { emitUpdate: false });
     }
   }, [content, editor]);
 
