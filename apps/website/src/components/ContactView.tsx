@@ -18,12 +18,20 @@ export function ContactView() {
       setErr("すべての項目を入力してください");
       return;
     }
+    const emailRegex = /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9-]+(?:\.[a-zA-Z0-9-]+)+$/;
+    if (!emailRegex.test(email.trim())) {
+      setErr("有効なメールアドレスを入力してください");
+      return;
+    }
     setSending(true);
     setErr("");
 
-    const { error } = await supabase
-      .from("contact_messages")
-      .insert({ name, email, subject, body });
+    const { error } = await supabase.from("contact_messages").insert({
+      name: name.trim(),
+      email: email.trim(),
+      subject: subject.trim(),
+      body: body.trim(),
+    });
 
     if (error) {
       setSending(false);
@@ -31,9 +39,20 @@ export function ContactView() {
       return;
     }
 
-    await supabase.functions.invoke("send-contact-email", {
-      body: { name, email, subject, body },
+    const { error: fnError } = await supabase.functions.invoke("send-contact-email", {
+      body: {
+        name: name.trim(),
+        email: email.trim(),
+        subject: subject.trim(),
+        body: body.trim(),
+      },
     });
+
+    if (fnError) {
+      setSending(false);
+      setErr("メールの送信処理に失敗しました。しばらくたってから再度お試しください。");
+      return;
+    }
 
     setSending(false);
     setSent(true);

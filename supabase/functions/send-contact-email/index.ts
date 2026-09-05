@@ -5,13 +5,64 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+function escapeHtml(str: string): string {
+  return str
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+
+const EMAIL_REGEX = /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9-]+(?:\.[a-zA-Z0-9-]+)+$/;
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
   }
 
   try {
-    const { name, email, subject, body } = await req.json();
+    const raw = await req.json();
+    const name = typeof raw.name === "string" ? raw.name.trim() : "";
+    const email = typeof raw.email === "string" ? raw.email.trim() : "";
+    const subject = typeof raw.subject === "string" ? raw.subject.trim() : "";
+    const body = typeof raw.body === "string" ? raw.body.trim() : "";
+
+    // Validation
+    if (!name || !email || !subject || !body) {
+      return new Response(JSON.stringify({ error: "すべての項目を入力してください。" }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 400,
+      });
+    }
+
+    if (name.length > 100 || subject.length > 200 || body.length > 5000) {
+      return new Response(JSON.stringify({ error: "入力文字数が上限を超えています。" }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 400,
+      });
+    }
+
+    if (!EMAIL_REGEX.test(email) || email.length > 254) {
+      return new Response(JSON.stringify({ error: "有効なメールアドレスを入力してください。" }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 400,
+      });
+    }
+
+    // Header injection prevention: reject CR / LF in email and subject
+    if (/[\r\n]/.test(email) || /[\r\n]/.test(name) || /[\r\n]/.test(subject)) {
+      return new Response(JSON.stringify({ error: "不正な改行文字が含まれています。" }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 400,
+      });
+    }
+
+    const safeName = escapeHtml(name);
+    const safeEmail = escapeHtml(email);
+    const safeSubject = escapeHtml(subject);
+    const safeBody = escapeHtml(body);
+    const safeMailto = encodeURIComponent(email);
 
     const adminHtml = `
 <!DOCTYPE html>
@@ -32,23 +83,23 @@ serve(async (req) => {
             <table width="100%" cellpadding="0" cellspacing="0">
               <tr><td style="padding:10px 0;border-bottom:1px solid #f0f0f0;">
                 <p style="margin:0;font-size:11px;color:#94a3b8;text-transform:uppercase;letter-spacing:1px;">お名前</p>
-                <p style="margin:4px 0 0;font-size:15px;color:#1e293b;font-weight:600;">${name}</p>
+                <p style="margin:4px 0 0;font-size:15px;color:#1e293b;font-weight:600;">${safeName}</p>
               </td></tr>
               <tr><td style="padding:10px 0;border-bottom:1px solid #f0f0f0;">
                 <p style="margin:0;font-size:11px;color:#94a3b8;text-transform:uppercase;letter-spacing:1px;">メールアドレス</p>
-                <p style="margin:4px 0 0;font-size:15px;color:#2563eb;">${email}</p>
+                <p style="margin:4px 0 0;font-size:15px;color:#2563eb;">${safeEmail}</p>
               </td></tr>
               <tr><td style="padding:10px 0;border-bottom:1px solid #f0f0f0;">
                 <p style="margin:0;font-size:11px;color:#94a3b8;text-transform:uppercase;letter-spacing:1px;">件名</p>
-                <p style="margin:4px 0 0;font-size:15px;color:#1e293b;font-weight:600;">${subject}</p>
+                <p style="margin:4px 0 0;font-size:15px;color:#1e293b;font-weight:600;">${safeSubject}</p>
               </td></tr>
               <tr><td style="padding:10px 0;">
                 <p style="margin:0;font-size:11px;color:#94a3b8;text-transform:uppercase;letter-spacing:1px;">内容</p>
-                <p style="margin:8px 0 0;font-size:15px;color:#334155;line-height:1.7;white-space:pre-wrap;">${body}</p>
+                <p style="margin:8px 0 0;font-size:15px;color:#334155;line-height:1.7;white-space:pre-wrap;">${safeBody}</p>
               </td></tr>
             </table>
             <div style="margin-top:28px;">
-              <a href="mailto:${email}" style="display:inline-block;background:#2563eb;color:#ffffff;font-size:14px;font-weight:700;padding:12px 28px;border-radius:8px;text-decoration:none;">このメールに返信する</a>
+              <a href="mailto:${safeMailto}" style="display:inline-block;background:#2563eb;color:#ffffff;font-size:14px;font-weight:700;padding:12px 28px;border-radius:8px;text-decoration:none;">このメールに返信する</a>
             </div>
           </td>
         </tr>
@@ -81,13 +132,21 @@ serve(async (req) => {
     const result = await res.json();
     console.log("Resend response:", JSON.stringify(result));
 
+    if (!res.ok) {
+      console.error("Resend API error:", result);
+      return new Response(JSON.stringify({ error: "メール送信サービスでエラーが発生しました。" }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 502,
+      });
+    }
+
     return new Response(JSON.stringify({ ok: true }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 200,
     });
   } catch (e) {
     console.error("Error:", e);
-    return new Response(JSON.stringify({ error: String(e) }), {
+    return new Response(JSON.stringify({ error: "サーバー内部エラーが発生しました。" }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 500,
     });
