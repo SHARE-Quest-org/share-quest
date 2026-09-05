@@ -27,20 +27,61 @@ export function EditorWritersView() {
   }, []);
 
   const changeRole = async (id: string, role: "viewer" | "writer" | "editor") => {
-    const { error } = await supabase.from("profiles").update({ role }).eq("id", id);
-    if (error) {
-      alert("更新に失敗しました: " + error.message);
-    } else {
-      setAllProfiles(allProfiles.map((w) => (w.id === id ? { ...w, role } : w)));
+    // 1. セキュアな管理者専用RPC関数を優先して実行
+    const { error: rpcError } = await supabase.rpc("admin_change_user_role", {
+      target_user_id: id,
+      new_role: role,
+    });
+
+    if (rpcError) {
+      // RPC関数が未作成（PGRST202）の場合のフォールバック
+      if (rpcError.code === "PGRST202") {
+        const { error: directError } = await supabase
+          .from("profiles")
+          .update({ role })
+          .eq("id", id);
+        if (directError) {
+          alert("更新に失敗しました: " + directError.message);
+          return;
+        }
+      } else {
+        alert("更新に失敗しました: " + rpcError.message);
+        return;
+      }
     }
+    setAllProfiles(allProfiles.map((w) => (w.id === id ? { ...w, role } : w)));
   };
 
   const promoteWriter = async (email: string) => {
-    if (!email.trim()) return;
+    const targetEmail = email.trim();
+    if (!targetEmail) return;
+
+    // 1. セキュアな管理者専用RPC関数を優先して実行
+    const { data: rpcData, error: rpcError } = await supabase.rpc("admin_promote_writer", {
+      target_email: targetEmail,
+    });
+
+    if (!rpcError && rpcData) {
+      const updated = rpcData as Profile;
+      setAllProfiles((prev) =>
+        prev.find((w) => w.id === updated.id)
+          ? prev.map((w) => (w.id === updated.id ? updated : w))
+          : [...prev, updated],
+      );
+      alert(`${updated.display_name ?? updated.email} をライターに昇格しました`);
+      return;
+    }
+
+    if (rpcError && rpcError.code !== "PGRST202") {
+      alert("エラーが発生しました: " + rpcError.message);
+      return;
+    }
+
+    // RPC関数が未作成（PGRST202）の場合のフォールバック
     const { data, error: fetchError } = await supabase
       .from("profiles")
       .select("*")
-      .eq("email", email.trim())
+      .eq("email", targetEmail)
       .single();
     if (fetchError || !data) {
       alert("ユーザーが見つかりません。先にアカウント登録が必要です。");
@@ -48,7 +89,7 @@ export function EditorWritersView() {
     }
     const { error } = await supabase.from("profiles").update({ role: "writer" }).eq("id", data.id);
     if (error) {
-      alert("エラーが発生しました");
+      alert("エラーが発生しました: " + error.message);
       return;
     }
     const updated = { ...data, role: "writer" as const };
