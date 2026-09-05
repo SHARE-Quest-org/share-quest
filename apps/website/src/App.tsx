@@ -312,15 +312,28 @@ const ArticleEditorPage = ({
     setEditorThumbnailUploading(false);
   }, [editingId]);
 
+  const ALLOWED_THUMBNAIL_TYPES: Record<string, string> = {
+    "image/jpeg": "jpg",
+    "image/png": "png",
+    "image/webp": "webp",
+    "image/gif": "gif",
+  };
+
   const handleThumbnailUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+
+    const ext = ALLOWED_THUMBNAIL_TYPES[file.type];
+    if (!ext) {
+      showToast("JPEG、PNG、WebP、GIF形式の画像を選択してください");
+      return;
+    }
+
     if (file.size > 10 * 1024 * 1024) {
       showToast("10MB以下の画像を選択してください");
       return;
     }
     setThumbnailUploading(true);
-    const ext = file.name.split(".").pop();
     const fileName = `${currentUserId}/${Date.now()}.${ext}`;
     const { error } = await supabase.storage
       .from("thumbnails")
@@ -712,7 +725,7 @@ const ArticleEditorPage = ({
                           : "画像をアップロード"}
                       <input
                         type="file"
-                        accept="image/*"
+                        accept="image/jpeg,image/png,image/webp,image/gif"
                         className="hidden"
                         onChange={(e) => void handleThumbnailUpload(e)}
                         disabled={thumbnailUploading}
