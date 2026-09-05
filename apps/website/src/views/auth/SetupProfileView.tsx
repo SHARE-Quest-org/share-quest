@@ -74,7 +74,7 @@ export const SetupProfileView = () => {
           display_name: displayName.trim(),
           username: username.trim(),
           avatar_url: profile?.avatar_url,
-          role: profile?.role ?? "viewer",
+          role: "viewer",
         });
         saveError = error;
       }
