@@ -29,7 +29,9 @@ export const ProfileView = () => {
             <CustomUserIcon className="w-16 h-16" />
           )}
         </div>
-        <h2 className="text-2xl font-bold mb-1">{writer.display_name ?? writer.email}</h2>
+        <h2 className="text-2xl font-bold mb-1">
+          {writer.display_name ?? (writer.username ? `@${writer.username}` : "名称未設定")}
+        </h2>
         <span className="inline-block px-3 py-1 bg-white/20 rounded-full text-sm font-bold backdrop-blur-sm">
           {writer.role === "editor" ? "編集長" : "ライター"}
         </span>

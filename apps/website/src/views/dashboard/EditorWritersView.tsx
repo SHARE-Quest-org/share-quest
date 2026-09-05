@@ -68,7 +68,9 @@ export function EditorWritersView() {
           ? prev.map((w) => (w.id === updated.id ? updated : w))
           : [...prev, updated],
       );
-      alert(`${updated.display_name ?? updated.email} をライターに昇格しました`);
+      alert(
+        `${updated.display_name ?? (updated.username ? `@${updated.username}` : (updated.email ?? updated.id))} をライターに昇格しました`,
+      );
       return;
     }
 
@@ -98,14 +100,17 @@ export function EditorWritersView() {
         ? prev.map((w) => (w.id === data.id ? updated : w))
         : [...prev, updated],
     );
-    alert(`${data.display_name ?? data.email} をライターに昇格しました`);
+    alert(
+      `${data.display_name ?? (data.username ? `@${data.username}` : (data.email ?? data.id))} をライターに昇格しました`,
+    );
   };
 
   const [newEmail, setNewEmail] = useState("");
 
   const filtered = allProfiles.filter((w) => {
     const emailMatch =
-      searchEmail === "" || w.email.toLowerCase().includes(searchEmail.toLowerCase());
+      searchEmail === "" ||
+      (w.email ? w.email.toLowerCase().includes(searchEmail.toLowerCase()) : false);
     const roleMatch = searchRole === "" || w.role === searchRole;
     return emailMatch && roleMatch;
   });
@@ -207,7 +212,7 @@ export function EditorWritersView() {
                     {roleLabel[w.role] ?? w.role}
                   </span>
                 </div>
-                <p className="text-xs text-gray-400 truncate">{w.email}</p>
+                <p className="text-xs text-gray-400 truncate">{w.email ?? "メール非公開"}</p>
               </div>
               <select
                 value={w.role}

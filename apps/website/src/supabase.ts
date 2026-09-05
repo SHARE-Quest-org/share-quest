@@ -23,7 +23,7 @@ export type UserRole = "viewer" | "writer" | "editor";
 
 export interface Profile {
   id: string;
-  email: string;
+  email?: string;
   role: UserRole;
   display_name: string | null;
   username: string | null;

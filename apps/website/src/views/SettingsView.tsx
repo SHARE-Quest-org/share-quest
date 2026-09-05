@@ -383,7 +383,8 @@ export const SettingsView = () => {
           <div className="p-4 border-b border-gray-100 flex items-center justify-between">
             <div>
               <p className="font-bold text-gray-800 text-sm">
-                {profile?.display_name ?? profile?.email}
+                {profile?.display_name ??
+                  (profile?.username ? `@${profile.username}` : (profile?.email ?? "アカウント"))}
               </p>
               <p className="text-xs text-gray-500">
                 {userRole === "editor" ? "編集長" : userRole === "writer" ? "ライター" : "閲覧者"}

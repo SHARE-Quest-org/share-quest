@@ -56,7 +56,8 @@ export const ArticleCard = ({
         </h3>
         <div className="flex items-center justify-between mt-2">
           <span className="text-xs text-gray-500 flex items-center gap-1 truncate max-w-[70%]">
-            <CustomUserIcon className="w-4 h-4" /> {writer?.display_name ?? writer?.email}
+            <CustomUserIcon className="w-4 h-4" />{" "}
+            {writer?.display_name ?? (writer?.username ? `@${writer.username}` : "名称未設定")}
           </span>
           <CustomStarIcon className="w-5 h-5" active={isFav} />
         </div>
