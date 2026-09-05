@@ -989,13 +989,9 @@ export default function App() {
     const article = articles.find((a) => a.id === viewParam);
     if (!article) return;
     viewedArticleIds.add(viewParam);
-    supabase
-      .from("articles")
-      .update({ views: article.views + 1 })
-      .eq("id", article.id)
-      .then(({ error }) => {
-        if (error) console.error("views update error:", error);
-      });
+    supabase.rpc("increment_views", { p_article_id: article.id }).then(({ error }) => {
+      if (error) console.error("views increment error:", error);
+    });
     setArticles((prev) =>
       prev.map((a) => (a.id === article.id ? { ...a, views: a.views + 1 } : a)),
     );
