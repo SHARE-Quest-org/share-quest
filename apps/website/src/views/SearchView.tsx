@@ -108,7 +108,7 @@ export const SearchView = () => {
                       <CustomUserIcon className="w-6 h-6" />
                     )}
                     <span className="text-sm font-bold text-gray-700 truncate">
-                      {w.display_name ?? w.email}
+                      {w.display_name ?? (w.username ? `@${w.username}` : "名称未設定")}
                     </span>
                   </button>
                 ))}

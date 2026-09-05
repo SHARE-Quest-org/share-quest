@@ -117,7 +117,9 @@ export const ArticleView = () => {
               </div>
               <div>
                 <p className="text-xs text-gray-500 font-bold mb-0.5">この記事を書いた人</p>
-                <p className="font-bold text-gray-800">{writer.display_name ?? writer.email}</p>
+                <p className="font-bold text-gray-800">
+                  {writer.display_name ?? (writer.username ? `@${writer.username}` : "名称未設定")}
+                </p>
               </div>
             </div>
             <span className="text-xs font-bold text-blue-500 bg-blue-50 px-3 py-1 rounded-full">

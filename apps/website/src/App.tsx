@@ -900,40 +900,42 @@ export default function App() {
   useEffect(() => {
     void supabase
       .from("profiles")
-      .select("*")
+      .select("id, username, display_name, avatar_url, bio, role")
       .then(({ data }) => {
         if (data) setWriters(data as Profile[]);
       });
   }, []);
 
   useEffect(() => {
-    void supabase
-      .from("articles")
-      .select("*")
-      .then(({ data }) => {
-        if (data) {
-          setArticles(
-            data.map((a) => ({
-              id: a.id,
-              title: a.title,
-              thumbnail: a.thumbnail,
-              thumbnailUrl: a.thumbnail_url ?? null,
-              thumbnailColor: a.thumbnail_color ?? "blue",
-              writerId: a.writer_id,
-              views: a.views,
-              likes: a.likes,
-              tags: a.tags,
-              isRecommended: a.is_recommended,
-              isPopular: a.is_popular,
-              status: a.status,
-              content: a.content,
-              seriesId: a.series_id ?? null,
-              episodeNumber: a.episode_number ?? null,
-            })),
-          );
-        }
-      });
-  }, []);
+    let query = supabase.from("articles").select("*");
+    if (userRole === "guest" || userRole === "viewer") {
+      query = query.eq("status", "published");
+    }
+    void query.then(({ data }) => {
+      if (data) {
+        setArticles(
+          data.map((a) => ({
+            id: a.id,
+            title: a.title,
+            thumbnail: a.thumbnail,
+            thumbnailUrl: a.thumbnail_url ?? null,
+            thumbnailColor: a.thumbnail_color ?? "blue",
+            writerId: a.writer_id,
+            views: a.views,
+            likes: a.likes,
+            tags: a.tags,
+            isRecommended: a.is_recommended,
+            isPopular: a.is_popular,
+            status: a.status,
+            content: a.content,
+            summary: a.summary ?? undefined,
+            seriesId: a.series_id ?? null,
+            episodeNumber: a.episode_number ?? null,
+          })),
+        );
+      }
+    });
+  }, [userRole, currentUserId]);
   const [fontSize, setFontSize] = useState(
     () => localStorage.getItem("share_quest_font_size") || "medium",
   );

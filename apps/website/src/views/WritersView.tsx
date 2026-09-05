@@ -22,7 +22,9 @@ export const WritersView = () => {
           )}
         </div>
         <div>
-          <p className="font-bold text-gray-800 text-lg">{w.display_name ?? w.email}</p>
+          <p className="font-bold text-gray-800 text-lg">
+            {w.display_name ?? (w.username ? `@${w.username}` : "名称未設定")}
+          </p>
           <p className="text-xs font-bold text-blue-500">
             {w.role === "editor" ? "編集長" : "ライター"}
           </p>
