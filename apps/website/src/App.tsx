@@ -168,7 +168,7 @@ const VIEW_TO_PATH: Record<string, string> = {
   resetPassword: "/reset-password",
 };
 
-function parseLocation(pathname: string): { currentView: string; viewParam: string | null } {
+export function parseLocation(pathname: string): { currentView: string; viewParam: string | null } {
   if (pathname === "/" || pathname === "") return { currentView: "home", viewParam: null };
   if (pathname === "/search") return { currentView: "search", viewParam: null };
   if (pathname === "/settings") return { currentView: "settings", viewParam: null };

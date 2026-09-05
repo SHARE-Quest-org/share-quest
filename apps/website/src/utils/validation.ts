@@ -1,0 +1,45 @@
+export const EMAIL_REGEX = /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9-]+(?:\.[a-zA-Z0-9-]+)+$/;
+
+export interface ContactFormInput {
+  name: string;
+  email: string;
+  subject: string;
+  body: string;
+}
+
+export function validateContactForm(input: ContactFormInput): {
+  isValid: boolean;
+  error?: string;
+} {
+  const name = input.name.trim();
+  const email = input.email.trim();
+  const subject = input.subject.trim();
+  const body = input.body.trim();
+
+  if (!name || !email || !subject || !body) {
+    return { isValid: false, error: "すべての項目を入力してください" };
+  }
+
+  if (name.length > 100 || subject.length > 200 || body.length > 5000) {
+    return { isValid: false, error: "入力文字数が上限を超えています" };
+  }
+
+  if (!EMAIL_REGEX.test(email) || email.length > 254) {
+    return { isValid: false, error: "有効なメールアドレスを入力してください" };
+  }
+
+  if (/[\r\n]/.test(email) || /[\r\n]/.test(name) || /[\r\n]/.test(subject)) {
+    return { isValid: false, error: "不正な改行文字が含まれています" };
+  }
+
+  return { isValid: true };
+}
+
+export function escapeHtml(str: string): string {
+  return str
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}

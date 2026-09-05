@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { ChevronLeft } from "lucide-react";
 import { supabase } from "../supabase";
+import { validateContactForm } from "../utils/validation";
 
 export function ContactView() {
   const nav = useNavigate();
@@ -14,13 +15,9 @@ export function ContactView() {
   const [err, setErr] = useState("");
 
   const handleSend = async () => {
-    if (!name.trim() || !email.trim() || !subject.trim() || !body.trim()) {
-      setErr("すべての項目を入力してください");
-      return;
-    }
-    const emailRegex = /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9-]+(?:\.[a-zA-Z0-9-]+)+$/;
-    if (!emailRegex.test(email.trim())) {
-      setErr("有効なメールアドレスを入力してください");
+    const validation = validateContactForm({ name, email, subject, body });
+    if (!validation.isValid) {
+      setErr(validation.error ?? "入力内容に誤りがあります");
       return;
     }
     setSending(true);
