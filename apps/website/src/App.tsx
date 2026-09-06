@@ -223,7 +223,7 @@ export default function App() {
       if (session?.user) {
         supabase
           .from("profiles")
-          .select("*")
+          .select("id, role, display_name, username, avatar_url, bio, created_at")
           .eq("id", session.user.id)
           .single()
           .then(
@@ -245,7 +245,10 @@ export default function App() {
                     });
                   Object.assign(data, updates);
                 }
-                setProfile(data);
+                setProfile({
+                  ...data,
+                  email: session.user.email ?? "",
+                });
                 setUserRole(data.role);
               } else {
                 // プロフィールがDBに存在しない場合の初期データフォールバック
@@ -497,9 +500,6 @@ export default function App() {
           if (error) console.error("fav delete:", error);
         });
       setFavorites(favorites.filter((id) => id !== articleId));
-      supabase.rpc("decrement_likes", { p_article_id: articleId }).then(({ error }) => {
-        if (error) console.error("likes dec:", error);
-      });
       setArticles((prev) =>
         prev.map((a) => (a.id === articleId ? { ...a, likes: Math.max(0, a.likes - 1) } : a)),
       );
@@ -512,9 +512,6 @@ export default function App() {
           if (error) console.error("fav insert:", error);
         });
       setFavorites([...favorites, articleId]);
-      supabase.rpc("increment_likes", { p_article_id: articleId }).then(({ error }) => {
-        if (error) console.error("likes inc:", error);
-      });
       setArticles((prev) =>
         prev.map((a) => (a.id === articleId ? { ...a, likes: a.likes + 1 } : a)),
       );
