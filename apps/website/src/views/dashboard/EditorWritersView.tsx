@@ -27,7 +27,7 @@ export function EditorWritersView() {
   };
 
   useEffect(() => {
-    fetchAll();
+    void fetchAll();
   }, []);
 
   const changeRole = async (id: string, role: "viewer" | "writer" | "editor") => {

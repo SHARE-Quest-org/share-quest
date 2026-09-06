@@ -36,11 +36,13 @@ const ALLOWED_ATTR = [
 ];
 
 // 外部リンクのリバースタブナビング防止: target="_blank" のリンクに rel="noopener noreferrer" を確実に付与
-DOMPurify.addHook("afterSanitizeAttributes", (node) => {
-  if (node.tagName === "A" && node.getAttribute("target") === "_blank") {
-    node.setAttribute("rel", "noopener noreferrer");
-  }
-});
+if (typeof DOMPurify?.addHook === "function") {
+  DOMPurify.addHook("afterSanitizeAttributes", (node) => {
+    if (node.tagName === "A" && node.getAttribute("target") === "_blank") {
+      node.setAttribute("rel", "noopener noreferrer");
+    }
+  });
+}
 
 export function sanitizeHtml(html: string): string {
   return DOMPurify.sanitize(html, {

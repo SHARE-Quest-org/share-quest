@@ -4,6 +4,7 @@ import { supabase } from "./supabase";
 import type { Profile } from "./supabase";
 import { X, Home } from "lucide-react";
 import { ContactView } from "./components/ContactView";
+import { MfaChallengeModal } from "./components/MfaChallengeModal";
 
 // App Context
 import { AppContext } from "./context/AppContext";
@@ -211,16 +212,48 @@ export default function App() {
   const [userRole, setUserRole] = useState<"guest" | "viewer" | "writer" | "editor">("guest");
   const [profile, setProfile] = useState<Profile | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
+  const [mfaChallengeRequired, setMfaChallengeRequired] = useState(false);
 
   useEffect(() => {
+    const checkAal = async () => {
+      try {
+        const { data, error } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+        if (!error && data) {
+          if (data.currentLevel === "aal1" && data.nextLevel === "aal2") {
+            // ローカルキャッシュの不整合を防ぐため、実際に有効なファクターが存在するか検証
+            const { data: factorsData } = await supabase.auth.mfa.listFactors();
+            const hasVerifiedFactors =
+              factorsData?.totp && factorsData.totp.some((f) => f.status === "verified");
+
+            if (hasVerifiedFactors) {
+              setMfaChallengeRequired(true);
+            } else {
+              // 実際には2FAが解除されている場合、セッションを最新化してチャレンジをスキップ
+              void supabase.auth.refreshSession();
+              setMfaChallengeRequired(false);
+            }
+          } else {
+            setMfaChallengeRequired(false);
+          }
+        }
+      } catch (e) {
+        console.error("Failed to check AAL level", e);
+      }
+    };
+
     void supabase.auth.getSession().then(({ data: { session } }) => {
       // プロフィール取得は onAuthStateChange に一本化
-      if (!session?.user) setAuthLoading(false);
+      if (!session?.user) {
+        setAuthLoading(false);
+      } else {
+        void checkAal();
+      }
     });
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
       if (session?.user) {
+        void checkAal();
         supabase
           .from("profiles")
           .select("id, role, display_name, username, avatar_url, bio, created_at")
@@ -286,6 +319,7 @@ export default function App() {
         setProfile(null);
         setUserRole("guest");
         setAuthLoading(false);
+        setMfaChallengeRequired(false);
       }
     });
     return () => subscription.unsubscribe();
@@ -906,6 +940,15 @@ export default function App() {
               </div>
             </div>
           </footer>
+        )}
+        {mfaChallengeRequired && (
+          <MfaChallengeModal
+            onSuccess={() => setMfaChallengeRequired(false)}
+            onCancel={async () => {
+              await supabase.auth.signOut();
+              setMfaChallengeRequired(false);
+            }}
+          />
         )}
         {toastMessage && (
           <div className="fixed bottom-8 left-1/2 -translate-x-1/2 bg-gray-900/90 backdrop-blur text-white px-6 py-3 rounded-full shadow-2xl z-50 animate-in slide-in-from-bottom-5 fade-in duration-300 flex items-center gap-3 text-sm font-bold whitespace-nowrap">

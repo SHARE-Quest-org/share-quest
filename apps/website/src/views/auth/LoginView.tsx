@@ -1,21 +1,56 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { supabase } from "../../supabase";
 import { useApp } from "../../context/AppContext";
+import { Key } from "lucide-react";
 
 export const LoginView = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [isPasskeySupported, setIsPasskeySupported] = useState(false);
   const { navigate } = useApp();
+
+  useEffect(() => {
+    if (typeof window !== "undefined" && !!window.PublicKeyCredential) {
+      setIsPasskeySupported(true);
+    }
+  }, []);
 
   const handleLogin = async () => {
     setLoading(true);
     setError("");
     const { error: loginErr } = await supabase.auth.signInWithPassword({ email, password });
-    if (loginErr) setError("メールアドレスまたはパスワードが間違っています");
-    else navigate("home");
+    if (loginErr) {
+      setError("メールアドレスまたはパスワードが間違っています");
+      setLoading(false);
+      return;
+    }
+
+    // ログイン成功: MFAが有効な場合は App.tsx 側で検知して MfaChallengeModal が表示されます
+    navigate("home");
     setLoading(false);
+  };
+
+  const handlePasskeyLogin = async () => {
+    setLoading(true);
+    setError("");
+    try {
+      const { data, error: passkeyErr } = await supabase.auth.signInWithPasskey();
+      if (passkeyErr) {
+        if (passkeyErr.name !== "NotAllowedError") {
+          setError(passkeyErr.message || "パスキーでのログインに失敗しました");
+        }
+      } else if (data?.session) {
+        navigate("home");
+      }
+    } catch (e: any) {
+      if (e?.name !== "NotAllowedError") {
+        setError("パスキーログイン中にエラーが発生しました");
+      }
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleGoogleLogin = async () => {
@@ -100,6 +135,17 @@ export const LoginView = () => {
             </svg>
             Googleでログイン
           </button>
+
+          {isPasskeySupported && (
+            <button
+              onClick={handlePasskeyLogin}
+              disabled={loading}
+              className="w-full py-3 border border-gray-300 text-gray-700 font-bold rounded-xl hover:bg-gray-50 flex items-center justify-center gap-2 bg-white transition-colors disabled:opacity-50"
+            >
+              <Key className="w-5 h-5 text-gray-600" />
+              パスキーでログイン
+            </button>
+          )}
         </div>
         <div className="mt-4 text-center">
           <p className="text-xs text-gray-400 mb-2">アカウントをお持ちでない方</p>
