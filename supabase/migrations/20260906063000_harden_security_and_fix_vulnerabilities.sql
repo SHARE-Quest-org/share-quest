@@ -42,10 +42,26 @@ LANGUAGE plpgsql
 SECURITY DEFINER
 SET search_path = public, pg_temp
 AS $$
+DECLARE
+  v_in_likes_sync boolean := coalesce(current_setting('quest.in_likes_sync', true), 'false') = 'true';
+  v_in_views_inc boolean := coalesce(current_setting('quest.in_views_increment', true), 'false') = 'true';
 BEGIN
+  -- 1. システム内部のいいね同期処理の場合（likes 列のみ更新を許可、他は OLD を保持）
+  IF v_in_likes_sync THEN
+    OLD.likes := NEW.likes;
+    RETURN OLD;
+  END IF;
+
+  -- 2. システム内部のPV加算処理の場合（views 列のみ +1 を許可、他は OLD を保持）
+  IF v_in_views_inc THEN
+    OLD.views := OLD.views + 1;
+    RETURN OLD;
+  END IF;
+
+  -- 3. 通常のユーザー（編集長またはライター）による更新
   IF NOT public.check_is_editor() THEN
     -- 投稿者は自分の記事しか更新できない
-    IF (auth.uid())::text != OLD.writer_id THEN
+    IF (auth.uid())::text IS NULL OR (auth.uid())::text != OLD.writer_id THEN
       RAISE EXCEPTION '他のユーザーの記事を更新することはできません。';
     END IF;
 
@@ -109,12 +125,11 @@ SECURITY DEFINER
 SET search_path = public, pg_temp
 AS $$
 BEGIN
+  PERFORM set_config('quest.in_likes_sync', 'true', true);
   IF TG_OP = 'INSERT' THEN
     UPDATE public.articles SET likes = likes + 1 WHERE id = NEW.article_id;
-    RETURN NEW;
   ELSIF TG_OP = 'DELETE' THEN
     UPDATE public.articles SET likes = GREATEST(likes - 1, 0) WHERE id = OLD.article_id;
-    RETURN OLD;
   END IF;
   RETURN NULL;
 END;
@@ -125,11 +140,31 @@ CREATE TRIGGER trg_sync_article_likes_on_favorite
   AFTER INSERT OR DELETE ON public.favorites
   FOR EACH ROW EXECUTE FUNCTION public.sync_article_likes_on_favorite();
 
--- increment_likes / decrement_likes への直接実行権限を剥奪（favorites トリガー経由のみに限定）
+-- 4. PVカウント用RPC（公開記事のみ +1、直接カラム改ざん抑止）
+CREATE OR REPLACE FUNCTION public.increment_views(p_article_id text)
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
+BEGIN
+  PERFORM set_config('quest.in_views_increment', 'true', true);
+  UPDATE public.articles
+  SET views = views + 1
+  WHERE id = p_article_id AND status = 'published';
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION public.increment_views(p_article_id text) TO anon, authenticated;
+
+-- トリガー関数および increment_likes / decrement_likes への直接実行権限を剥奪（直接RPC呼び出し禁止）
+REVOKE EXECUTE ON FUNCTION public.enforce_article_update_rules() FROM PUBLIC, anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.enforce_article_insert_rules() FROM PUBLIC, anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.sync_article_likes_on_favorite() FROM PUBLIC, anon, authenticated;
 REVOKE EXECUTE ON FUNCTION public.increment_likes(p_article_id text) FROM PUBLIC, anon, authenticated;
 REVOKE EXECUTE ON FUNCTION public.decrement_likes(p_article_id text) FROM PUBLIC, anon, authenticated;
 
--- 4. 最後の編集長アカウント降格の防止
+-- 5. 最後の編集長アカウント降格の防止
 CREATE OR REPLACE FUNCTION public.admin_change_user_role(target_user_id text, new_role text)
 RETURNS void
 LANGUAGE plpgsql
@@ -167,7 +202,7 @@ BEGIN
 END;
 $$;
 
--- 5. 連載（series）の認可強化および外部キー制約修正
+-- 6. 連載（series）の認可強化および外部キー制約修正
 ALTER TABLE public.articles
   DROP CONSTRAINT IF EXISTS articles_series_id_fkey,
   ADD CONSTRAINT articles_series_id_fkey
