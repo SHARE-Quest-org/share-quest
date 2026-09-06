@@ -10,16 +10,20 @@ export function EditorWritersView() {
   const [searchRole, setSearchRole] = useState<"" | "viewer" | "writer" | "editor">("");
   const nav = useNavigate();
 
-  const fetchAll = () => {
+  const fetchAll = async () => {
     setLoading(true);
-    void supabase
-      .from("profiles")
-      .select("*")
-      .order("role", { ascending: true })
-      .then(({ data }) => {
-        if (data) setAllProfiles(data as Profile[]);
-        setLoading(false);
-      });
+    const { data: rpcData, error: rpcError } = await supabase.rpc("admin_get_all_profiles");
+    if (!rpcError && rpcData) {
+      setAllProfiles(rpcData as Profile[]);
+    } else {
+      // 安全な公開カラムのみ取得するフォールバック
+      const { data: fallbackData } = await supabase
+        .from("profiles")
+        .select("id, role, display_name, username, avatar_url, bio, created_at")
+        .order("role", { ascending: true });
+      if (fallbackData) setAllProfiles(fallbackData as Profile[]);
+    }
+    setLoading(false);
   };
 
   useEffect(() => {
@@ -27,27 +31,14 @@ export function EditorWritersView() {
   }, []);
 
   const changeRole = async (id: string, role: "viewer" | "writer" | "editor") => {
-    // 1. セキュアな管理者専用RPC関数を優先して実行
     const { error: rpcError } = await supabase.rpc("admin_change_user_role", {
       target_user_id: id,
       new_role: role,
     });
 
     if (rpcError) {
-      // RPC関数が未作成（PGRST202）の場合のフォールバック
-      if (rpcError.code === "PGRST202") {
-        const { error: directError } = await supabase
-          .from("profiles")
-          .update({ role })
-          .eq("id", id);
-        if (directError) {
-          alert("更新に失敗しました: " + directError.message);
-          return;
-        }
-      } else {
-        alert("更新に失敗しました: " + rpcError.message);
-        return;
-      }
+      alert("ロールの変更に失敗しました: " + rpcError.message);
+      return;
     }
     setAllProfiles(allProfiles.map((w) => (w.id === id ? { ...w, role } : w)));
   };
@@ -56,12 +47,17 @@ export function EditorWritersView() {
     const targetEmail = email.trim();
     if (!targetEmail) return;
 
-    // 1. セキュアな管理者専用RPC関数を優先して実行
+    // セキュアな管理者専用RPC関数を実行
     const { data: rpcData, error: rpcError } = await supabase.rpc("admin_promote_writer", {
       target_email: targetEmail,
     });
 
-    if (!rpcError && rpcData) {
+    if (rpcError) {
+      alert("ライターの昇格に失敗しました: " + rpcError.message);
+      return;
+    }
+
+    if (rpcData) {
       const updated = rpcData as Profile;
       setAllProfiles((prev) =>
         prev.find((w) => w.id === updated.id)
@@ -71,38 +67,7 @@ export function EditorWritersView() {
       alert(
         `${updated.display_name ?? (updated.username ? `@${updated.username}` : (updated.email ?? updated.id))} をライターに昇格しました`,
       );
-      return;
     }
-
-    if (rpcError && rpcError.code !== "PGRST202") {
-      alert("エラーが発生しました: " + rpcError.message);
-      return;
-    }
-
-    // RPC関数が未作成（PGRST202）の場合のフォールバック
-    const { data, error: fetchError } = await supabase
-      .from("profiles")
-      .select("*")
-      .eq("email", targetEmail)
-      .single();
-    if (fetchError || !data) {
-      alert("ユーザーが見つかりません。先にアカウント登録が必要です。");
-      return;
-    }
-    const { error } = await supabase.from("profiles").update({ role: "writer" }).eq("id", data.id);
-    if (error) {
-      alert("エラーが発生しました: " + error.message);
-      return;
-    }
-    const updated = { ...data, role: "writer" as const };
-    setAllProfiles((prev) =>
-      prev.find((w) => w.id === data.id)
-        ? prev.map((w) => (w.id === data.id ? updated : w))
-        : [...prev, updated],
-    );
-    alert(
-      `${data.display_name ?? (data.username ? `@${data.username}` : (data.email ?? data.id))} をライターに昇格しました`,
-    );
   };
 
   const [newEmail, setNewEmail] = useState("");
