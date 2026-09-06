@@ -735,81 +735,94 @@ export default function App() {
               {currentView === "favorites" && <FavoritesView />}
               {currentView === "settings" && <SettingsView />}
               {currentView === "about" && <AboutView />}
-              {currentView === "writerNew" && (userRole === "writer" || userRole === "editor") && (
-                <ArticleEditorPage
-                  editingId={null}
-                  articles={articles}
-                  setArticles={setArticles}
-                  seriesList={seriesList}
-                  currentUserId={currentUserId}
-                  showToast={showToast}
-                  navigate={navigate}
-                  draftTitle={draftTitle}
-                  setDraftTitle={setDraftTitle}
-                  draftContent={draftContent}
-                  setDraftContent={setDraftContent}
-                  draftColor={draftColor}
-                  setDraftColor={setDraftColor}
-                  draftTags={draftTags}
-                  setDraftTags={setDraftTags}
-                  draftSeriesId={draftSeriesId}
-                  setDraftSeriesId={setDraftSeriesId}
-                  draftEpisodeNumber={draftEpisodeNumber}
-                  setDraftEpisodeNumber={setDraftEpisodeNumber}
-                  draftSummary={draftSummary}
-                  setDraftSummary={setDraftSummary}
-                  draftTagInput={draftTagInput}
-                  setDraftTagInput={setDraftTagInput}
-                  editorSaving={editorSaving}
-                  setEditorSaving={setEditorSaving}
-                  editorShowPreview={editorShowPreview}
-                  setEditorShowPreview={setEditorShowPreview}
-                  draftThumbnailUrl={draftThumbnailUrl}
-                  setDraftThumbnailUrl={setDraftThumbnailUrl}
-                  editorThumbnailUploading={editorThumbnailUploading}
-                  setEditorThumbnailUploading={setEditorThumbnailUploading}
-                />
-              )}
-              {currentView === "writerEdit" && (userRole === "writer" || userRole === "editor") && (
-                <ArticleEditorPage
-                  editingId={viewParam}
-                  articles={articles}
-                  setArticles={setArticles}
-                  seriesList={seriesList}
-                  currentUserId={currentUserId}
-                  showToast={showToast}
-                  navigate={navigate}
-                  draftTitle={draftTitle}
-                  setDraftTitle={setDraftTitle}
-                  draftContent={draftContent}
-                  setDraftContent={setDraftContent}
-                  draftColor={draftColor}
-                  setDraftColor={setDraftColor}
-                  draftTags={draftTags}
-                  setDraftTags={setDraftTags}
-                  draftSeriesId={draftSeriesId}
-                  setDraftSeriesId={setDraftSeriesId}
-                  draftEpisodeNumber={draftEpisodeNumber}
-                  setDraftEpisodeNumber={setDraftEpisodeNumber}
-                  draftSummary={draftSummary}
-                  setDraftSummary={setDraftSummary}
-                  draftTagInput={draftTagInput}
-                  setDraftTagInput={setDraftTagInput}
-                  editorSaving={editorSaving}
-                  setEditorSaving={setEditorSaving}
-                  editorShowPreview={editorShowPreview}
-                  setEditorShowPreview={setEditorShowPreview}
-                  draftThumbnailUrl={draftThumbnailUrl}
-                  setDraftThumbnailUrl={setDraftThumbnailUrl}
-                  editorThumbnailUploading={editorThumbnailUploading}
-                  setEditorThumbnailUploading={setEditorThumbnailUploading}
-                />
-              )}
-              {currentView === "writerDash" && (userRole === "writer" || userRole === "editor") && (
-                <WriterDashboard />
-              )}
+              {currentView === "writerNew" &&
+                (userRole === "writer" || userRole === "editor" ? (
+                  <ArticleEditorPage
+                    editingId={null}
+                    articles={articles}
+                    setArticles={setArticles}
+                    seriesList={seriesList}
+                    currentUserId={currentUserId}
+                    showToast={showToast}
+                    navigate={navigate}
+                    draftTitle={draftTitle}
+                    setDraftTitle={setDraftTitle}
+                    draftContent={draftContent}
+                    setDraftContent={setDraftContent}
+                    draftColor={draftColor}
+                    setDraftColor={setDraftColor}
+                    draftTags={draftTags}
+                    setDraftTags={setDraftTags}
+                    draftSeriesId={draftSeriesId}
+                    setDraftSeriesId={setDraftSeriesId}
+                    draftEpisodeNumber={draftEpisodeNumber}
+                    setDraftEpisodeNumber={setDraftEpisodeNumber}
+                    draftSummary={draftSummary}
+                    setDraftSummary={setDraftSummary}
+                    draftTagInput={draftTagInput}
+                    setDraftTagInput={setDraftTagInput}
+                    editorSaving={editorSaving}
+                    setEditorSaving={setEditorSaving}
+                    editorShowPreview={editorShowPreview}
+                    setEditorShowPreview={setEditorShowPreview}
+                    draftThumbnailUrl={draftThumbnailUrl}
+                    setDraftThumbnailUrl={setDraftThumbnailUrl}
+                    editorThumbnailUploading={editorThumbnailUploading}
+                    setEditorThumbnailUploading={setEditorThumbnailUploading}
+                  />
+                ) : (
+                  <AccessDeniedView />
+                ))}
+              {currentView === "writerEdit" &&
+                (userRole === "writer" || userRole === "editor" ? (
+                  <ArticleEditorPage
+                    editingId={viewParam}
+                    articles={articles}
+                    setArticles={setArticles}
+                    seriesList={seriesList}
+                    currentUserId={currentUserId}
+                    showToast={showToast}
+                    navigate={navigate}
+                    draftTitle={draftTitle}
+                    setDraftTitle={setDraftTitle}
+                    draftContent={draftContent}
+                    setDraftContent={setDraftContent}
+                    draftColor={draftColor}
+                    setDraftColor={setDraftColor}
+                    draftTags={draftTags}
+                    setDraftTags={setDraftTags}
+                    draftSeriesId={draftSeriesId}
+                    setDraftSeriesId={setDraftSeriesId}
+                    draftEpisodeNumber={draftEpisodeNumber}
+                    setDraftEpisodeNumber={setDraftEpisodeNumber}
+                    draftSummary={draftSummary}
+                    setDraftSummary={setDraftSummary}
+                    draftTagInput={draftTagInput}
+                    setDraftTagInput={setDraftTagInput}
+                    editorSaving={editorSaving}
+                    setEditorSaving={setEditorSaving}
+                    editorShowPreview={editorShowPreview}
+                    setEditorShowPreview={setEditorShowPreview}
+                    draftThumbnailUrl={draftThumbnailUrl}
+                    setDraftThumbnailUrl={setDraftThumbnailUrl}
+                    editorThumbnailUploading={editorThumbnailUploading}
+                    setEditorThumbnailUploading={setEditorThumbnailUploading}
+                  />
+                ) : (
+                  <AccessDeniedView />
+                ))}
+              {currentView === "writerDash" &&
+                (userRole === "writer" || userRole === "editor" ? (
+                  <WriterDashboard />
+                ) : (
+                  <AccessDeniedView />
+                ))}
               {currentView === "writerSeries" &&
-                (userRole === "writer" || userRole === "editor") && <WriterSeriesPage />}
+                (userRole === "writer" || userRole === "editor" ? (
+                  <WriterSeriesPage />
+                ) : (
+                  <AccessDeniedView />
+                ))}
               {currentView === "editorDash" &&
                 (userRole === "editor" ? <EditorDashboard /> : <AccessDeniedView />)}
               {currentView === "editorArticles" &&

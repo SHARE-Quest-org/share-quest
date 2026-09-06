@@ -179,6 +179,7 @@ export const ArticleEditorPage = ({
         .update({
           title: formTitle,
           content: formContent,
+          summary: formSummary || null,
           tags,
           thumbnail_color: formColor,
           thumbnail_url: thumbnailUrl,
@@ -216,6 +217,7 @@ export const ArticleEditorPage = ({
         .insert({
           title: formTitle,
           content: formContent,
+          summary: formSummary || null,
           tags,
           thumbnail_color: formColor,
           thumbnail_url: thumbnailUrl,
@@ -304,6 +306,7 @@ export const ArticleEditorPage = ({
           .update({
             title: formTitle,
             content: formContent,
+            summary: formSummary || null,
             tags,
             thumbnail_color: formColor,
             thumbnail_url: thumbnailUrl,
@@ -317,6 +320,7 @@ export const ArticleEditorPage = ({
           .insert({
             title: formTitle,
             content: formContent,
+            summary: formSummary || null,
             tags,
             thumbnail_color: formColor,
             thumbnail_url: thumbnailUrl,
