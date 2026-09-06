@@ -35,6 +35,22 @@ export const ProfileView = () => {
         <span className="inline-block px-3 py-1 bg-white/20 rounded-full text-sm font-bold backdrop-blur-sm">
           {writer.role === "editor" ? "編集長" : "ライター"}
         </span>
+        {writer.username && (
+          <div className="mt-3">
+            <a
+              href={`https://x.com/${encodeURIComponent(writer.username.replace(/^@/, ""))}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-black/20 hover:bg-black/35 text-white rounded-full text-xs font-bold backdrop-blur-sm transition-all border border-white/20 hover:border-white/40 shadow-sm"
+              aria-label={`@${writer.username.replace(/^@/, "")} のX（旧Twitter）アカウントを開く`}
+            >
+              <svg className="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.746l7.73-8.835L1.254 2.25H8.08l4.259 5.63 5.905-5.63Zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+              </svg>
+              <span>@{writer.username.replace(/^@/, "")}</span>
+            </a>
+          </div>
+        )}
       </div>
       <div className="p-4 md:p-8 space-y-6 -mt-4 relative z-10">
         {writer.bio && (

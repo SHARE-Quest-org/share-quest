@@ -133,7 +133,7 @@ export const SetupProfileView = () => {
               className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
             <p className="text-[10px] text-gray-400 mt-1">
-              半角英数字・アンダースコア3〜20文字。プロフィールURLに使用されます。
+              半角英数字・アンダースコア3〜20文字。プロフィールURLおよびX（旧Twitter）リンクに使用されます。
             </p>
           </div>
           <button
