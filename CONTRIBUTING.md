@@ -31,14 +31,31 @@ vp install
 pnpm install
 ```
 
-### 3. 環境変数の設定
+### 3. 環境変数の設定（環境分離）
 
-`apps/website/.env` を作成し、Supabaseの接続情報を設定します（値はSupabaseダッシュボード > Project Settings > API より取得）：
+当プロジェクトでは、**本番データと開発データの混在・汚染を防ぐため、開発・テスト・本番環境を厳密に分離**しています。
 
-```env
-VITE_SUPABASE_URL=https://your-project.supabase.co
-VITE_SUPABASE_ANON_KEY=your-anon-key
-```
+1. **ローカル開発環境 (`vp dev`)**:
+   `apps/website/.env.example` をコピーして `apps/website/.env.development.local` を作成し、**開発用**の Supabase 接続情報を設定します：
+
+   ```bash
+   cp apps/website/.env.example apps/website/.env.development.local
+   ```
+
+   ```env
+   VITE_SUPABASE_URL=https://your-dev-project.supabase.co
+   VITE_SUPABASE_ANON_KEY=your-dev-anon-key
+   ```
+
+   > [!WARNING]
+   > 本番用 Supabase プロジェクトの接続情報をローカル環境に設定しないでください。
+   > ローカル開発サーバー起動時、本番DBへの接続が検出された場合は画面上に警告バナーが表示されます。
+
+2. **自動テスト環境 (`vp test`)**:
+   `apps/website/.env.test`（リポジトリ同梱）が自動的に適用されるため、設定作業は不要です。外部の実データベースへは一切通信しません。
+
+3. **本番環境 (Vercel)**:
+   Vercel ダッシュボードの「Settings」>「Environment Variables」にて本番用接続情報を設定します。
 
 ### 4. 開発サーバーの起動
 
