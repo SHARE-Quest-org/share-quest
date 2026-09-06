@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import { describe, it, expect } from "vite-plus/test";
 import { sanitizeHtml } from "./sanitize";
 
