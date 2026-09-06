@@ -153,7 +153,7 @@ function UsernameEdit({
           </div>
           {err && <p className="text-xs text-red-500">{err}</p>}
           <p className="text-xs text-gray-400">
-            半角英数字・アンダースコア3〜20文字。プロフィーURLに使われます。
+            半角英数字・アンダースコア3〜20文字。プロフィールURLおよびX（旧Twitter）リンクに使用されます。
           </p>
         </div>
       ) : (
