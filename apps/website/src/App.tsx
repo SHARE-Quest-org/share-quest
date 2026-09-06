@@ -5,6 +5,7 @@ import type { Profile } from "./supabase";
 import { X, Home } from "lucide-react";
 import { ContactView } from "./components/ContactView";
 import { MfaChallengeModal } from "./components/MfaChallengeModal";
+import { EnvironmentBanner } from "./components/EnvironmentBanner";
 
 // App Context
 import { AppContext } from "./context/AppContext";
@@ -753,6 +754,7 @@ export default function App() {
   return (
     <AppContext.Provider value={contextValue}>
       <div className="min-h-screen bg-gray-50 pb-20 sm:pb-10 text-gray-800 font-sans selection:bg-blue-200">
+        <EnvironmentBanner />
         {!hideHeader && !needsProfileSetup && <Header />}
         {!hideHeader && !needsProfileSetup && <MobileNav />}
         <main className="max-w-6xl mx-auto flex-1">
