@@ -40,7 +40,8 @@ SHARE Questのライターが、「楽しい」「おもしろい」と感じた
 share-quest/
 ├── apps/
 │   └── website/                   # メインWebアプリケーション
-│       ├── public/                # 静的アセット・vercel.json
+│       ├── public/                # 静的アセット
+│       ├── vercel.json            # Vercelデプロイ設定 (SPAリライト・セキュリティヘッダー)
 │       ├── src/
 │       │   ├── App.tsx            # メインルーティング・ナビゲーション・レイアウト
 │       │   ├── App.test.ts        # ルーティング等のユニットテスト
@@ -50,10 +51,14 @@ share-quest/
 │       │   ├── assets/            # 画像・アイコンアセット
 │       │   ├── components/        # 共通UIコンポーネント
 │       │   │   ├── ArticleCard.tsx      # 記事カード
-│       │   │   ├── ContactView.tsx      # お問い合わせフォーム
-│       │   │   └── RichTextEditor.tsx   # Tiptapリッチテキストエディタ
+│       │   │   ├── RichTextEditor.tsx   # Tiptapリッチテキストエディタ
+│       │   │   ├── MfaChallengeModal.tsx# MFAチャレンジモーダル
+│       │   │   └── icons/
+│       │   │       └── NavIcons.tsx     # ナビゲーションアイコン群
 │       │   ├── context/
 │       │   │   └── AppContext.tsx # グローバル状態管理 (Context / Provider)
+│       │   ├── types/
+│       │   │   └── index.ts       # 共通型定義 (Article, Series, ステータスマップ等)
 │       │   ├── utils/             # 共通ユーティリティ
 │       │   │   ├── sanitize.ts    # DOMPurify HTMLサニタイズ
 │       │   │   ├── sanitize.test.ts
@@ -66,7 +71,8 @@ share-quest/
 │       │       ├── WritersView.tsx      # ライター一覧
 │       │       ├── ProfileView.tsx      # ライター詳細 (Xアカウント連携)
 │       │       ├── FavoritesView.tsx    # お気に入り記事一覧
-│       │       ├── SettingsView.tsx     # 設定 (表示名, X連携, 文字サイズ)
+│       │       ├── SettingsView.tsx     # 設定 (表示名, X連携, MFA, 文字サイズ)
+│       │       ├── ContactView.tsx      # お問い合わせフォーム
 │       │       ├── AboutView.tsx        # サービス紹介
 │       │       ├── PrivacyView.tsx      # プライバシーポリシー
 │       │       ├── TermsView.tsx        # 利用規約
@@ -88,8 +94,6 @@ share-quest/
 │       ├── package.json
 │       ├── tsconfig.json
 │       └── vite.config.ts
-├── packages/
-│   └── utils/                     # 共有ユーティリティパッケージ
 ├── docs/                          # 運用ドキュメント・ランブック (緊急MFA救済手順等)
 ├── supabase/                      # Supabase設定・マイグレーション
 │   ├── config.toml

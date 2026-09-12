@@ -118,7 +118,7 @@ Vite+ (`vp`) の統合コマンドを使用して、フォーマット、静的�
 
 - **本番環境**: `main` ブランチへのマージ / プッシュによって Vercel に自動デプロイされます。
 - **デプロイ設定**:
-  - `vercel.json` は `apps/website/vercel.json`（および `public/vercel.json`）に配置されており、SPAリライトやCSP/HSTSなどのセキュリティヘッダーが定義されています。
+  - `vercel.json` は `apps/website/vercel.json` に配置されており、SPAリライトやCSP/HSTSなどのセキュリティヘッダーが定義されています。
   - Vercelダッシュボードの「Environment Variables」に `VITE_SUPABASE_URL` と `VITE_SUPABASE_ANON_KEY` を登録する必要があります。
 
 ---
