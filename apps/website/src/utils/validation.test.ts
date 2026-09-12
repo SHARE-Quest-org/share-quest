@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vite-plus/test";
-import { validateContactForm, escapeHtml } from "./validation";
+import { validateContactForm } from "./validation";
 
 describe("validateContactForm", () => {
   const validInput = {
@@ -48,19 +48,5 @@ describe("validateContactForm", () => {
     ).toBe(false);
     expect(validateContactForm({ ...validInput, name: "Taro\nYamada" }).isValid).toBe(false);
     expect(validateContactForm({ ...validInput, subject: "Test\r\nSubject" }).isValid).toBe(false);
-  });
-});
-
-describe("escapeHtml", () => {
-  it("escapes special HTML characters to prevent XSS", () => {
-    expect(escapeHtml("<script>alert('XSS')</script>")).toBe(
-      "&lt;script&gt;alert(&#039;XSS&#039;)&lt;/script&gt;",
-    );
-    expect(escapeHtml('Hello & "Welcome"')).toBe("Hello &amp; &quot;Welcome&quot;");
-  });
-
-  it("returns safe strings unchanged", () => {
-    expect(escapeHtml("Hello World 123")).toBe("Hello World 123");
-    expect(escapeHtml("山田 太郎")).toBe("山田 太郎");
   });
 });

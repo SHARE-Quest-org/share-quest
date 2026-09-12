@@ -1,6 +1,6 @@
 import { createContext, useContext } from "react";
 import type { Profile } from "../supabase";
-import type { Article, Series } from "../App";
+import type { Article, Series } from "../types";
 
 export interface AppContextType {
   // Authentication & Profile

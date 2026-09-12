@@ -2,13 +2,13 @@ import { useMemo, useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { supabase } from "./supabase";
 import type { Profile } from "./supabase";
-import { X, Home } from "lucide-react";
-import { ContactView } from "./components/ContactView";
+import { X } from "lucide-react";
+import { ContactView } from "./views/ContactView";
 import { MfaChallengeModal } from "./components/MfaChallengeModal";
 import { EnvironmentBanner } from "./components/EnvironmentBanner";
 
 // App Context
-import { AppContext } from "./context/AppContext";
+import { AppContext, useApp } from "./context/AppContext";
 import type { AppContextType } from "./context/AppContext";
 
 // Views & Components
@@ -38,113 +38,31 @@ import { EditorRecommendView } from "./views/dashboard/EditorRecommendView";
 import { EditorWritersView } from "./views/dashboard/EditorWritersView";
 import { AccessDeniedView } from "./views/dashboard/AccessDeniedView";
 
-export type Series = {
-  id: string;
-  title: string;
-  description?: string | null;
-  writerId: string;
-};
+// Types
+import type { Series, Article } from "./types";
+import { mapDbArticleToArticle } from "./types";
+export type { Series, Article } from "./types";
+export { THUMBNAIL_COLORS, getThumbnailColor, MOCK_TAGS } from "./types";
 
-export type Article = {
-  id: string;
-  title: string;
-  thumbnail: string;
-  thumbnailUrl: string | null;
-  thumbnailColor: string | null;
-  writerId: string;
-  views: number;
-  likes: number;
-  tags: string[];
-  isRecommended: boolean;
-  isPopular: boolean;
-  status: "draft" | "pending" | "published";
-  content?: string;
-  summary?: string;
-  seriesId?: string | null;
-  episodeNumber?: number | null;
-};
-import imgLogo from "./assets/170805.jpg";
+// Icons
+import {
+  LogoIcon,
+  CustomHomeIcon,
+  CustomSearchIcon,
+  CustomUserIcon,
+  CustomStarIcon,
+  CustomSettingsIcon,
+} from "./components/icons/NavIcons";
+export {
+  LogoIcon,
+  CustomHomeIcon,
+  CustomSearchIcon,
+  CustomUserIcon,
+  CustomStarIcon,
+  CustomSettingsIcon,
+} from "./components/icons/NavIcons";
+
 import imgTitle from "./assets/117_20260501195729.png";
-import imgSearch from "./assets/118_20260501193319.png";
-import imgUser from "./assets/119_20260501193952.png";
-import imgStar from "./assets/120_20260501194440.png";
-import imgSettings from "./assets/121_20260501195446.png";
-
-export const LogoIcon = ({ className = "w-8 h-8" }) => (
-  <img src={imgLogo} className={`${className} object-cover rounded`} alt="Logo" />
-);
-export const CustomHomeIcon = ({
-  className = "w-6 h-6",
-  active = false,
-}: {
-  className?: string;
-  active?: boolean;
-}) => <Home className={`${className} ${active ? "text-blue-600" : "text-gray-400"}`} />;
-export const CustomSearchIcon = ({
-  className = "w-6 h-6",
-  active,
-}: {
-  className?: string;
-  active?: boolean;
-}) => (
-  <img
-    src={imgSearch}
-    className={`${className} object-cover rounded-full ${active ? "ring-2 ring-blue-500" : ""}`}
-    alt="Search"
-  />
-);
-export const CustomUserIcon = ({
-  className = "w-6 h-6",
-  active = false,
-}: {
-  className?: string;
-  active?: boolean;
-}) => (
-  <img
-    src={imgUser}
-    className={`${className} object-cover rounded-full ${active ? "ring-2 ring-blue-500" : ""}`}
-    alt="User"
-  />
-);
-export const CustomStarIcon = ({
-  className = "w-6 h-6",
-  active = false,
-}: {
-  className?: string;
-  active?: boolean;
-}) => (
-  <img
-    src={imgStar}
-    className={`${className} object-cover rounded-full ${active ? "ring-2 ring-yellow-400" : ""}`}
-    alt="Star"
-  />
-);
-export const CustomSettingsIcon = ({
-  className = "w-6 h-6",
-  active,
-}: {
-  className?: string;
-  active?: boolean;
-}) => (
-  <img
-    src={imgSettings}
-    className={`${className} object-cover rounded-full ${active ? "ring-2 ring-gray-400" : ""}`}
-    alt="Settings"
-  />
-);
-
-export const MOCK_TAGS = ["理科", "歴史", "数学", "国語", "英語", "プログラミング", "雑学"];
-
-export const THUMBNAIL_COLORS = [
-  { id: "blue", label: "ブルー", bg: "bg-blue-100", text: "text-blue-400" },
-  { id: "green", label: "グリーン", bg: "bg-green-100", text: "text-green-400" },
-  { id: "purple", label: "パープル", bg: "bg-purple-100", text: "text-purple-400" },
-  { id: "orange", label: "オレンジ", bg: "bg-orange-100", text: "text-orange-400" },
-  { id: "pink", label: "ピンク", bg: "bg-pink-100", text: "text-pink-400" },
-  { id: "teal", label: "ティール", bg: "bg-teal-100", text: "text-teal-400" },
-];
-export const getThumbnailColor = (colorId: string | null) =>
-  THUMBNAIL_COLORS.find((c) => c.id === colorId) ?? THUMBNAIL_COLORS[0];
 
 const VIEW_TO_PATH: Record<string, string> = {
   home: "/",
@@ -364,26 +282,7 @@ export default function App() {
     }
     void query.then(({ data }) => {
       if (data) {
-        setArticles(
-          data.map((a) => ({
-            id: a.id,
-            title: a.title,
-            thumbnail: a.thumbnail,
-            thumbnailUrl: a.thumbnail_url ?? null,
-            thumbnailColor: a.thumbnail_color ?? "blue",
-            writerId: a.writer_id,
-            views: a.views,
-            likes: a.likes,
-            tags: a.tags,
-            isRecommended: a.is_recommended,
-            isPopular: a.is_popular,
-            status: a.status,
-            content: a.content,
-            summary: a.summary ?? undefined,
-            seriesId: a.series_id ?? null,
-            episodeNumber: a.episode_number ?? null,
-          })),
-        );
+        setArticles(data.map(mapDbArticleToArticle));
       }
     });
   }, [userRole, currentUserId]);
@@ -408,18 +307,6 @@ export default function App() {
   }, [userRole, currentUserId]);
 
   // views カウントアップ（セッション内で同じ記事は1回だけ）
-  const [draftTitle, setDraftTitle] = useState("");
-  const [draftContent, setDraftContent] = useState("");
-  const [draftColor, setDraftColor] = useState("blue");
-  const [draftTags, setDraftTags] = useState<string[]>([]);
-  const [draftSeriesId, setDraftSeriesId] = useState("");
-  const [draftEpisodeNumber, setDraftEpisodeNumber] = useState("");
-  const [draftThumbnailUrl, setDraftThumbnailUrl] = useState<string | null>(null);
-  const [draftSummary, setDraftSummary] = useState("");
-  const [draftTagInput, setDraftTagInput] = useState("");
-  const [editorSaving, setEditorSaving] = useState(false);
-  const [editorShowPreview, setEditorShowPreview] = useState(false);
-  const [editorThumbnailUploading, setEditorThumbnailUploading] = useState(false);
   const viewedArticleIds = useMemo(() => new Set<string>(), []);
   useEffect(() => {
     if (currentView !== "article" || !viewParam) return;
@@ -554,159 +441,6 @@ export default function App() {
     }
   };
 
-  // --- Header ---
-  const Header = () => (
-    <header className="sticky top-0 z-50 bg-white border-b shadow-sm w-full">
-      <div className="flex items-center justify-center sm:justify-between px-4 md:px-8 py-1.5 max-w-6xl mx-auto w-full">
-        <div className="flex items-center gap-2 cursor-pointer" onClick={() => navigate("home")}>
-          <LogoIcon className="w-8 h-8" />
-          <img src={imgTitle} className="h-10 object-contain inline-block" alt="SHARE Quest" />
-        </div>
-        <div className="hidden sm:flex items-center gap-2">
-          <button
-            onClick={() => navigate("home")}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl hover:bg-gray-100 transition-colors ${currentView === "home" ? "bg-gray-50" : ""}`}
-          >
-            <CustomHomeIcon active={currentView === "home"} />
-            <span
-              className={`text-sm font-bold ${currentView === "home" ? "text-blue-600" : "text-gray-600"}`}
-            >
-              トップ
-            </span>
-          </button>
-          <button
-            onClick={() => navigate("search")}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl hover:bg-gray-100 transition-colors ${currentView === "search" ? "bg-gray-50" : ""}`}
-          >
-            <CustomSearchIcon active={currentView === "search"} />
-            <span
-              className={`text-sm font-bold ${currentView === "search" ? "text-blue-600" : "text-gray-600"}`}
-            >
-              探す
-            </span>
-          </button>
-          <button
-            onClick={() => navigate("writers")}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl hover:bg-gray-100 transition-colors ${currentView === "writers" || currentView === "profile" ? "bg-gray-50" : ""}`}
-          >
-            <CustomUserIcon active={currentView === "writers" || currentView === "profile"} />
-            <span
-              className={`text-sm font-bold ${currentView === "writers" || currentView === "profile" ? "text-blue-600" : "text-gray-600"}`}
-            >
-              ライター
-            </span>
-          </button>
-          <button
-            onClick={() => navigate("favorites")}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl hover:bg-gray-100 transition-colors ${currentView === "favorites" ? "bg-gray-50" : ""}`}
-          >
-            <CustomStarIcon active={currentView === "favorites"} />
-            <span
-              className={`text-sm font-bold ${currentView === "favorites" ? "text-blue-600" : "text-gray-600"}`}
-            >
-              お気に入り
-            </span>
-          </button>
-          <button
-            onClick={() => navigate("settings")}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl hover:bg-gray-100 transition-colors ${["settings", "writerDash", "editorDash"].includes(currentView) ? "bg-gray-50" : ""}`}
-          >
-            <CustomSettingsIcon
-              active={
-                currentView === "settings" ||
-                currentView === "writerDash" ||
-                currentView === "editorDash"
-              }
-            />
-            <span
-              className={`text-sm font-bold ${["settings", "writerDash", "editorDash"].includes(currentView) ? "text-blue-600" : "text-gray-600"}`}
-            >
-              設定
-            </span>
-          </button>
-        </div>
-      </div>
-    </header>
-  );
-
-  // --- MobileNav ---
-  const MobileNav = () => (
-    <nav className="sm:hidden fixed bottom-0 left-0 w-full bg-white border-t border-gray-200 flex items-center justify-around pb-[calc(env(safe-area-inset-bottom)+0.5rem)] pt-2 z-50">
-      <button
-        onClick={() => navigate("home")}
-        className="flex flex-col items-center justify-center gap-1 w-16"
-      >
-        <CustomHomeIcon active={currentView === "home"} />
-        <span
-          className={`text-[10px] ${currentView === "home" ? "text-blue-600 font-bold" : "text-gray-500"}`}
-        >
-          トップ
-        </span>
-      </button>
-      <button
-        onClick={() => navigate("search")}
-        className="flex flex-col items-center justify-center gap-1 w-16"
-      >
-        <CustomSearchIcon active={currentView === "search"} />
-        <span
-          className={`text-[10px] ${currentView === "search" ? "text-blue-600 font-bold" : "text-gray-500"}`}
-        >
-          探す
-        </span>
-      </button>
-      <button
-        onClick={() => navigate("writers")}
-        className="flex flex-col items-center justify-center gap-1 w-16"
-      >
-        <CustomUserIcon active={currentView === "writers" || currentView === "profile"} />
-        <span
-          className={`text-[10px] ${currentView === "writers" || currentView === "profile" ? "text-blue-600 font-bold" : "text-gray-500"}`}
-        >
-          ライター
-        </span>
-      </button>
-      <button
-        onClick={() => navigate("favorites")}
-        className="flex flex-col items-center justify-center gap-1 w-16"
-      >
-        <CustomStarIcon active={currentView === "favorites"} />
-        <span
-          className={`text-[10px] ${currentView === "favorites" ? "text-blue-600 font-bold" : "text-gray-500"}`}
-        >
-          お気に入り
-        </span>
-      </button>
-      <button
-        onClick={() => navigate("settings")}
-        className="flex flex-col items-center justify-center gap-1 w-16"
-      >
-        <CustomSettingsIcon
-          active={
-            currentView === "settings" ||
-            currentView === "writerDash" ||
-            currentView === "editorDash"
-          }
-        />
-        <span
-          className={`text-[10px] ${["settings", "writerDash", "editorDash"].includes(currentView) ? "text-blue-600 font-bold" : "text-gray-500"}`}
-        >
-          設定
-        </span>
-      </button>
-    </nav>
-  );
-
-  // --- ArticleCard ---
-  // --- HomeView ---
-  // --- ArticleView ---
-  // --- SearchView ---
-  // --- WritersView ---
-  // --- ProfileView ---
-  // --- FavoritesView ---
-  // --- SettingsView ---
-  // --- WriterDashboard ---
-  // --- EditorDashboard ---
-  // --- AboutView ---
   const needsProfileSetup = profile !== null && (!profile.username || !profile.display_name);
 
   // --- ヘッダー非表示判定 ---
@@ -773,77 +507,13 @@ export default function App() {
               {currentView === "about" && <AboutView />}
               {currentView === "writerNew" &&
                 (userRole === "writer" || userRole === "editor" ? (
-                  <ArticleEditorPage
-                    editingId={null}
-                    articles={articles}
-                    setArticles={setArticles}
-                    seriesList={seriesList}
-                    currentUserId={currentUserId}
-                    showToast={showToast}
-                    navigate={navigate}
-                    draftTitle={draftTitle}
-                    setDraftTitle={setDraftTitle}
-                    draftContent={draftContent}
-                    setDraftContent={setDraftContent}
-                    draftColor={draftColor}
-                    setDraftColor={setDraftColor}
-                    draftTags={draftTags}
-                    setDraftTags={setDraftTags}
-                    draftSeriesId={draftSeriesId}
-                    setDraftSeriesId={setDraftSeriesId}
-                    draftEpisodeNumber={draftEpisodeNumber}
-                    setDraftEpisodeNumber={setDraftEpisodeNumber}
-                    draftSummary={draftSummary}
-                    setDraftSummary={setDraftSummary}
-                    draftTagInput={draftTagInput}
-                    setDraftTagInput={setDraftTagInput}
-                    editorSaving={editorSaving}
-                    setEditorSaving={setEditorSaving}
-                    editorShowPreview={editorShowPreview}
-                    setEditorShowPreview={setEditorShowPreview}
-                    draftThumbnailUrl={draftThumbnailUrl}
-                    setDraftThumbnailUrl={setDraftThumbnailUrl}
-                    editorThumbnailUploading={editorThumbnailUploading}
-                    setEditorThumbnailUploading={setEditorThumbnailUploading}
-                  />
+                  <ArticleEditorPage editingId={null} />
                 ) : (
                   <AccessDeniedView />
                 ))}
               {currentView === "writerEdit" &&
                 (userRole === "writer" || userRole === "editor" ? (
-                  <ArticleEditorPage
-                    editingId={viewParam}
-                    articles={articles}
-                    setArticles={setArticles}
-                    seriesList={seriesList}
-                    currentUserId={currentUserId}
-                    showToast={showToast}
-                    navigate={navigate}
-                    draftTitle={draftTitle}
-                    setDraftTitle={setDraftTitle}
-                    draftContent={draftContent}
-                    setDraftContent={setDraftContent}
-                    draftColor={draftColor}
-                    setDraftColor={setDraftColor}
-                    draftTags={draftTags}
-                    setDraftTags={setDraftTags}
-                    draftSeriesId={draftSeriesId}
-                    setDraftSeriesId={setDraftSeriesId}
-                    draftEpisodeNumber={draftEpisodeNumber}
-                    setDraftEpisodeNumber={setDraftEpisodeNumber}
-                    draftSummary={draftSummary}
-                    setDraftSummary={setDraftSummary}
-                    draftTagInput={draftTagInput}
-                    setDraftTagInput={setDraftTagInput}
-                    editorSaving={editorSaving}
-                    setEditorSaving={setEditorSaving}
-                    editorShowPreview={editorShowPreview}
-                    setEditorShowPreview={setEditorShowPreview}
-                    draftThumbnailUrl={draftThumbnailUrl}
-                    setDraftThumbnailUrl={setDraftThumbnailUrl}
-                    editorThumbnailUploading={editorThumbnailUploading}
-                    setEditorThumbnailUploading={setEditorThumbnailUploading}
-                  />
+                  <ArticleEditorPage editingId={viewParam} />
                 ) : (
                   <AccessDeniedView />
                 ))}
@@ -965,6 +635,152 @@ export default function App() {
         )}
       </div>
     </AppContext.Provider>
+  );
+}
+
+function Header() {
+  const { currentView, navigate } = useApp();
+  return (
+    <header className="sticky top-0 z-50 bg-white border-b shadow-sm w-full">
+      <div className="flex items-center justify-center sm:justify-between px-4 md:px-8 py-1.5 max-w-6xl mx-auto w-full">
+        <div className="flex items-center gap-2 cursor-pointer" onClick={() => navigate("home")}>
+          <LogoIcon className="w-8 h-8" />
+          <img src={imgTitle} className="h-10 object-contain inline-block" alt="SHARE Quest" />
+        </div>
+        <div className="hidden sm:flex items-center gap-2">
+          <button
+            onClick={() => navigate("home")}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl hover:bg-gray-100 transition-colors ${currentView === "home" ? "bg-gray-50" : ""}`}
+          >
+            <CustomHomeIcon active={currentView === "home"} />
+            <span
+              className={`text-sm font-bold ${currentView === "home" ? "text-blue-600" : "text-gray-600"}`}
+            >
+              トップ
+            </span>
+          </button>
+          <button
+            onClick={() => navigate("search")}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl hover:bg-gray-100 transition-colors ${currentView === "search" ? "bg-gray-50" : ""}`}
+          >
+            <CustomSearchIcon active={currentView === "search"} />
+            <span
+              className={`text-sm font-bold ${currentView === "search" ? "text-blue-600" : "text-gray-600"}`}
+            >
+              探す
+            </span>
+          </button>
+          <button
+            onClick={() => navigate("writers")}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl hover:bg-gray-100 transition-colors ${currentView === "writers" || currentView === "profile" ? "bg-gray-50" : ""}`}
+          >
+            <CustomUserIcon active={currentView === "writers" || currentView === "profile"} />
+            <span
+              className={`text-sm font-bold ${currentView === "writers" || currentView === "profile" ? "text-blue-600" : "text-gray-600"}`}
+            >
+              ライター
+            </span>
+          </button>
+          <button
+            onClick={() => navigate("favorites")}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl hover:bg-gray-100 transition-colors ${currentView === "favorites" ? "bg-gray-50" : ""}`}
+          >
+            <CustomStarIcon active={currentView === "favorites"} />
+            <span
+              className={`text-sm font-bold ${currentView === "favorites" ? "text-blue-600" : "text-gray-600"}`}
+            >
+              お気に入り
+            </span>
+          </button>
+          <button
+            onClick={() => navigate("settings")}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl hover:bg-gray-100 transition-colors ${["settings", "writerDash", "editorDash"].includes(currentView) ? "bg-gray-50" : ""}`}
+          >
+            <CustomSettingsIcon
+              active={
+                currentView === "settings" ||
+                currentView === "writerDash" ||
+                currentView === "editorDash"
+              }
+            />
+            <span
+              className={`text-sm font-bold ${["settings", "writerDash", "editorDash"].includes(currentView) ? "text-blue-600" : "text-gray-600"}`}
+            >
+              設定
+            </span>
+          </button>
+        </div>
+      </div>
+    </header>
+  );
+}
+
+function MobileNav() {
+  const { currentView, navigate } = useApp();
+  return (
+    <nav className="sm:hidden fixed bottom-0 left-0 w-full bg-white border-t border-gray-200 flex items-center justify-around pb-[calc(env(safe-area-inset-bottom)+0.5rem)] pt-2 z-50">
+      <button
+        onClick={() => navigate("home")}
+        className="flex flex-col items-center justify-center gap-1 w-16"
+      >
+        <CustomHomeIcon active={currentView === "home"} />
+        <span
+          className={`text-[10px] ${currentView === "home" ? "text-blue-600 font-bold" : "text-gray-500"}`}
+        >
+          トップ
+        </span>
+      </button>
+      <button
+        onClick={() => navigate("search")}
+        className="flex flex-col items-center justify-center gap-1 w-16"
+      >
+        <CustomSearchIcon active={currentView === "search"} />
+        <span
+          className={`text-[10px] ${currentView === "search" ? "text-blue-600 font-bold" : "text-gray-500"}`}
+        >
+          探す
+        </span>
+      </button>
+      <button
+        onClick={() => navigate("writers")}
+        className="flex flex-col items-center justify-center gap-1 w-16"
+      >
+        <CustomUserIcon active={currentView === "writers" || currentView === "profile"} />
+        <span
+          className={`text-[10px] ${currentView === "writers" || currentView === "profile" ? "text-blue-600 font-bold" : "text-gray-500"}`}
+        >
+          ライター
+        </span>
+      </button>
+      <button
+        onClick={() => navigate("favorites")}
+        className="flex flex-col items-center justify-center gap-1 w-16"
+      >
+        <CustomStarIcon active={currentView === "favorites"} />
+        <span
+          className={`text-[10px] ${currentView === "favorites" ? "text-blue-600 font-bold" : "text-gray-500"}`}
+        >
+          お気に入り
+        </span>
+      </button>
+      <button
+        onClick={() => navigate("settings")}
+        className="flex flex-col items-center justify-center gap-1 w-16"
+      >
+        <CustomSettingsIcon
+          active={
+            currentView === "settings" ||
+            currentView === "writerDash" ||
+            currentView === "editorDash"
+          }
+        />
+        <span
+          className={`text-[10px] ${["settings", "writerDash", "editorDash"].includes(currentView) ? "text-blue-600 font-bold" : "text-gray-500"}`}
+        >
+          設定
+        </span>
+      </button>
+    </nav>
   );
 }
 

@@ -1,6 +1,7 @@
-import type { Article } from "../App";
+import type { Article } from "../types";
 import { useApp } from "../context/AppContext";
-import { getThumbnailColor, LogoIcon, CustomUserIcon, CustomStarIcon } from "../App";
+import { getThumbnailColor } from "../types";
+import { LogoIcon, CustomUserIcon, CustomStarIcon } from "./icons/NavIcons";
 
 export const ArticleCard = ({
   article,
@@ -12,6 +13,7 @@ export const ArticleCard = ({
   const { writers, favorites, navigate } = useApp();
   const writer = writers.find((w) => w.id === article.writerId);
   const isFav = favorites.includes(article.id);
+  const color = getThumbnailColor(article.thumbnailColor ?? null);
 
   return (
     <div
@@ -20,32 +22,29 @@ export const ArticleCard = ({
       }`}
       onClick={() => navigate("article", article.id)}
     >
-      {(() => {
-        const color = getThumbnailColor(article.thumbnailColor ?? null);
-        return article.thumbnailUrl ? (
-          <div
-            className={`${
-              layout === "horizontal" ? "w-1/3 min-w-[110px] h-full" : "w-full"
-            } overflow-hidden bg-gray-50`}
-            style={layout !== "horizontal" ? { aspectRatio: "16/9" } : {}}
-          >
-            <img
-              src={article.thumbnailUrl}
-              alt={article.title}
-              className="w-full h-full object-contain"
-            />
-          </div>
-        ) : (
-          <div
-            className={`${color.bg} ${
-              layout === "horizontal" ? "w-1/3 min-w-[110px]" : "w-full"
-            } flex items-center justify-center`}
-            style={layout !== "horizontal" ? { aspectRatio: "16/9" } : {}}
-          >
-            <LogoIcon className="w-10 h-10 opacity-40" />
-          </div>
-        );
-      })()}
+      {article.thumbnailUrl ? (
+        <div
+          className={`${
+            layout === "horizontal" ? "w-1/3 min-w-[110px] h-full" : "w-full"
+          } overflow-hidden bg-gray-50`}
+          style={layout !== "horizontal" ? { aspectRatio: "16/9" } : {}}
+        >
+          <img
+            src={article.thumbnailUrl}
+            alt={article.title}
+            className="w-full h-full object-contain"
+          />
+        </div>
+      ) : (
+        <div
+          className={`${color.bg} ${
+            layout === "horizontal" ? "w-1/3 min-w-[110px]" : "w-full"
+          } flex items-center justify-center`}
+          style={layout !== "horizontal" ? { aspectRatio: "16/9" } : {}}
+        >
+          <LogoIcon className="w-10 h-10 opacity-40" />
+        </div>
+      )}
       <div
         className={`p-3 flex flex-col justify-between ${
           layout === "horizontal" ? "w-2/3" : "w-full"

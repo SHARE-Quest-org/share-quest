@@ -2,6 +2,8 @@ import { useState } from "react";
 import { useApp } from "../../context/AppContext";
 import { supabase } from "../../supabase";
 import { ChevronLeft } from "lucide-react";
+import { ARTICLE_STATUS_CONFIG } from "../../types";
+import type { ArticleStatus } from "../../types";
 
 export const WriterSeriesPage = () => {
   const { profile, seriesList, setSeriesList, showToast, navigate, articles, setArticles } =
@@ -157,11 +159,8 @@ export const WriterSeriesPage = () => {
                                 {a.title}
                               </p>
                               <p className="text-xs text-gray-400">
-                                {a.status === "published"
-                                  ? "公開中"
-                                  : a.status === "draft"
-                                    ? "下書き"
-                                    : "審査中"}
+                                {ARTICLE_STATUS_CONFIG[a.status as ArticleStatus]?.label ??
+                                  a.status}
                               </p>
                             </div>
                             <button

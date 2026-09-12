@@ -2,7 +2,8 @@ import { sanitizeHtml } from "../../utils/sanitize";
 import { useState, useEffect } from "react";
 import { supabase } from "../../supabase";
 import { ChevronLeft, X } from "lucide-react";
-import type { Article } from "../../App";
+import type { Article, ArticleStatus } from "../../types";
+import { mapDbArticleToArticle, ARTICLE_STATUS_CONFIG } from "../../types";
 import { useNavigate } from "react-router-dom";
 import { useApp } from "../../context/AppContext";
 
@@ -19,24 +20,7 @@ export function EditorArticlesView() {
       .select("*")
       .order("created_at", { ascending: false })
       .then(({ data }) => {
-        if (data)
-          setArticles(
-            data.map((a) => ({
-              id: a.id,
-              title: a.title,
-              thumbnail: a.thumbnail,
-              thumbnailUrl: a.thumbnail_url ?? null,
-              thumbnailColor: a.thumbnail_color ?? "blue",
-              writerId: a.writer_id,
-              views: a.views,
-              likes: a.likes,
-              tags: a.tags,
-              isRecommended: a.is_recommended,
-              isPopular: a.is_popular,
-              status: a.status,
-              content: a.content,
-            })),
-          );
+        if (data) setArticles(data.map(mapDbArticleToArticle));
         setLoading(false);
       });
   }, []);
@@ -47,14 +31,8 @@ export function EditorArticlesView() {
     if (!error) setArticles(articles.filter((a) => a.id !== id));
   };
 
-  const statusLabel = (s: string) =>
-    s === "published" ? "公開中" : s === "pending" ? "承認待ち" : "下書き";
-  const statusColor = (s: string) =>
-    s === "published"
-      ? "text-green-600 bg-green-50"
-      : s === "pending"
-        ? "text-orange-600 bg-orange-50"
-        : "text-gray-500 bg-gray-100";
+  const getStatusConfig = (s: string) =>
+    ARTICLE_STATUS_CONFIG[s as ArticleStatus] ?? ARTICLE_STATUS_CONFIG.draft;
 
   return (
     <div className="p-4 space-y-4 animate-in slide-in-from-right-8 duration-300">
@@ -79,9 +57,9 @@ export function EditorArticlesView() {
                       {a.title}
                     </p>
                     <span
-                      className={`text-xs font-bold px-2 py-0.5 rounded-full mt-1 inline-block ${statusColor(a.status)}`}
+                      className={`text-xs font-bold px-2 py-0.5 rounded-full mt-1 inline-block ${getStatusConfig(a.status).badgeClass}`}
                     >
-                      {statusLabel(a.status)}
+                      {getStatusConfig(a.status).label}
                     </span>
                   </button>
                   <button
@@ -109,9 +87,9 @@ export function EditorArticlesView() {
               <div className="flex-1 min-w-0">
                 <p className="font-bold text-gray-900 text-base truncate">{previewArticle.title}</p>
                 <span
-                  className={`text-xs font-bold px-2 py-0.5 rounded-full mt-1 inline-block ${statusColor(previewArticle.status)}`}
+                  className={`text-xs font-bold px-2 py-0.5 rounded-full mt-1 inline-block ${getStatusConfig(previewArticle.status).badgeClass}`}
                 >
-                  {statusLabel(previewArticle.status)}
+                  {getStatusConfig(previewArticle.status).label}
                 </span>
               </div>
               <button

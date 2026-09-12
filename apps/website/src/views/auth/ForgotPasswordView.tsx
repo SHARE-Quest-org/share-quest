@@ -9,7 +9,8 @@ export const ForgotPasswordView = () => {
   const [loading, setLoading] = useState(false);
   const { navigate, showToast } = useApp();
 
-  const handleSendEmail = async () => {
+  const handleSendEmail = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
     if (!email.trim()) {
       setError("メールアドレスを入力してください");
       return;
@@ -47,7 +48,7 @@ export const ForgotPasswordView = () => {
             </p>
           </div>
         )}
-        <div className="space-y-4">
+        <form onSubmit={handleSendEmail} className="space-y-4">
           <input
             type="email"
             placeholder="メールアドレス"
@@ -56,12 +57,14 @@ export const ForgotPasswordView = () => {
             className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
           <button
-            onClick={handleSendEmail}
+            type="submit"
             disabled={loading}
             className="w-full py-3 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700 disabled:opacity-50"
           >
             {loading ? "送信中..." : "再設定メールを送信"}
           </button>
+        </form>
+        <div className="mt-4">
           <button
             onClick={() => navigate("login")}
             className="w-full py-3 border border-gray-300 text-gray-600 font-bold rounded-xl hover:bg-gray-50 bg-white"

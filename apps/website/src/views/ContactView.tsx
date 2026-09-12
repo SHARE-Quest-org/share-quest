@@ -105,7 +105,13 @@ export function ContactView() {
             ご質問・ご意見・不具合のご報告などはこちらから。
           </p>
         </div>
-        <div className="space-y-4">
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            void handleSend();
+          }}
+          className="space-y-4"
+        >
           <div>
             <label className="block text-sm font-bold text-gray-700 mb-1">
               お名前 <span className="text-red-500">*</span>
@@ -156,13 +162,13 @@ export function ContactView() {
           </div>
           {err && <p className="text-sm text-red-500">{err}</p>}
           <button
-            onClick={() => void handleSend()}
+            type="submit"
             disabled={sending}
             className="w-full py-3 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700 disabled:opacity-50 transition-colors"
           >
             {sending ? "送信中..." : "送信する"}
           </button>
-        </div>
+        </form>
       </div>
     </div>
   );

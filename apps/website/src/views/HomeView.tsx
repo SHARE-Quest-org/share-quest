@@ -1,6 +1,6 @@
 import imgRecommend from "../assets/recommend_icon.png";
 import { useApp } from "../context/AppContext";
-import { LogoIcon } from "../App";
+import { LogoIcon } from "../components/icons/NavIcons";
 import { ArticleCard } from "../components/ArticleCard";
 
 export const HomeView = () => {
@@ -65,5 +65,3 @@ export const HomeView = () => {
     </div>
   );
 };
-
-// --- ArticleView ---

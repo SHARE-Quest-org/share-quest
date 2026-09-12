@@ -1,5 +1,6 @@
 import { useApp } from "../context/AppContext";
-import { LogoIcon, CustomUserIcon, CustomStarIcon, getThumbnailColor } from "../App";
+import { getThumbnailColor } from "../types";
+import { LogoIcon, CustomUserIcon, CustomStarIcon } from "../components/icons/NavIcons";
 import { ChevronLeft, Share2, Eye } from "lucide-react";
 import { sanitizeHtml } from "../utils/sanitize";
 
