@@ -11,7 +11,8 @@ export const RegisterView = () => {
   const [loading, setLoading] = useState(false);
   const { navigate, showToast } = useApp();
 
-  const handleRegister = async () => {
+  const handleRegister = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
     setLoading(true);
     setError("");
     const { error: signUpErr } = await supabase.auth.signUp({
@@ -33,7 +34,7 @@ export const RegisterView = () => {
       <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-8 w-full max-w-sm">
         <h1 className="text-2xl font-bold text-center mb-6">アカウント登録</h1>
         {error && <p className="text-red-500 text-sm mb-4 text-center">{error}</p>}
-        <div className="space-y-4">
+        <form onSubmit={handleRegister} className="space-y-4">
           <input
             type="text"
             placeholder="表示名 *"
@@ -63,13 +64,13 @@ export const RegisterView = () => {
             className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
           <button
-            onClick={handleRegister}
+            type="submit"
             disabled={loading}
             className="w-full py-3 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700 disabled:opacity-50"
           >
             {loading ? "登録中..." : "登録する"}
           </button>
-        </div>
+        </form>
         <div className="mt-5 p-4 bg-blue-50 border border-blue-200 rounded-xl text-center">
           <p className="text-xs text-gray-600 mb-2 font-medium">
             ライターとして記事を書きたい方は、登録後にXでご連絡ください

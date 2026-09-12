@@ -1,7 +1,8 @@
 import { useState, useEffect } from "react";
 import { supabase } from "../../supabase";
 import { ChevronLeft } from "lucide-react";
-import type { Article } from "../../App";
+import type { Article } from "../../types";
+import { mapDbArticleToArticle } from "../../types";
 import { useNavigate } from "react-router-dom";
 export function EditorRecommendView() {
   const [articles, setArticles] = useState<Article[]>([]);
@@ -14,24 +15,7 @@ export function EditorRecommendView() {
       .select("*")
       .eq("status", "published")
       .then(({ data }) => {
-        if (data)
-          setArticles(
-            data.map((a) => ({
-              id: a.id,
-              title: a.title,
-              thumbnail: a.thumbnail,
-              thumbnailUrl: a.thumbnail_url ?? null,
-              thumbnailColor: a.thumbnail_color ?? "blue",
-              writerId: a.writer_id,
-              views: a.views,
-              likes: a.likes,
-              tags: a.tags,
-              isRecommended: a.is_recommended,
-              isPopular: a.is_popular,
-              status: a.status,
-              content: a.content,
-            })),
-          );
+        if (data) setArticles(data.map(mapDbArticleToArticle));
         setLoading(false);
       });
   }, []);

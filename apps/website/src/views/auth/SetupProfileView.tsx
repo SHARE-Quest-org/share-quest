@@ -9,7 +9,8 @@ export const SetupProfileView = () => {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
-  const handleSave = async () => {
+  const handleSave = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
     if (!displayName.trim()) {
       setError("表示名を入力してください");
       return;
@@ -45,39 +46,17 @@ export const SetupProfileView = () => {
         return;
       }
 
-      const { data: dbProfile, error: dbErr } = await supabase
-        .from("profiles")
-        .select("id")
-        .eq("id", profile?.id)
-        .maybeSingle();
-
-      if (dbErr) {
-        setError("エラーが発生しました。もう一度お試しください。");
-        setLoading(false);
-        return;
-      }
-
-      let saveError;
-      if (dbProfile) {
-        const { error } = await supabase
-          .from("profiles")
-          .update({
-            display_name: displayName.trim(),
-            username: username.trim(),
-          })
-          .eq("id", profile?.id);
-        saveError = error;
-      } else {
-        const { error } = await supabase.from("profiles").insert({
+      const { error: saveError } = await supabase.from("profiles").upsert(
+        {
           id: profile?.id,
           email: profile?.email,
           display_name: displayName.trim(),
           username: username.trim(),
           avatar_url: profile?.avatar_url,
-          role: "viewer",
-        });
-        saveError = error;
-      }
+          role: profile?.role ?? "viewer",
+        },
+        { onConflict: "id" },
+      );
 
       if (saveError) {
         setError(saveError.message);
@@ -112,7 +91,7 @@ export const SetupProfileView = () => {
           SHARE Questを利用するためにプロフィールを設定してください
         </p>
         {error && <p className="text-red-500 text-sm mb-4 text-center">{error}</p>}
-        <div className="space-y-4">
+        <form onSubmit={handleSave} className="space-y-4">
           <div>
             <label className="block text-xs font-bold text-gray-500 mb-1">表示名 *</label>
             <input
@@ -137,19 +116,20 @@ export const SetupProfileView = () => {
             </p>
           </div>
           <button
-            onClick={handleSave}
+            type="submit"
             disabled={loading}
             className="w-full py-3 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700 disabled:opacity-50 mt-2"
           >
             {loading ? "設定中..." : "設定を完了する"}
           </button>
           <button
+            type="button"
             onClick={handleLogout}
             className="w-full py-3 border border-gray-300 text-gray-600 font-bold rounded-xl hover:bg-gray-50 bg-white"
           >
             ログアウト
           </button>
-        </div>
+        </form>
       </div>
     </div>
   );

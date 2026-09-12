@@ -1,8 +1,9 @@
 import { useApp } from "../../context/AppContext";
 import { supabase } from "../../supabase";
-import { getThumbnailColor, LogoIcon } from "../../App";
+import { LogoIcon } from "../../components/icons/NavIcons";
+import { getThumbnailColor, ARTICLE_STATUS_CONFIG } from "../../types";
+import type { Article, ArticleStatus } from "../../types";
 import { ChevronLeft, Plus, Edit3 } from "lucide-react";
-import type { Article } from "../../App";
 
 export const WriterDashboard = () => {
   const { profile, articles, setArticles, showToast, navigate } = useApp();
@@ -45,21 +46,10 @@ export const WriterDashboard = () => {
   };
 
   const statusLabel = (status: string) => {
-    if (status === "published")
-      return (
-        <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded font-bold shrink-0">
-          公開中
-        </span>
-      );
-    if (status === "pending")
-      return (
-        <span className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded font-bold shrink-0">
-          申請中
-        </span>
-      );
+    const config = ARTICLE_STATUS_CONFIG[status as ArticleStatus] ?? ARTICLE_STATUS_CONFIG.draft;
     return (
-      <span className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded font-bold shrink-0">
-        下書き
+      <span className={`text-xs ${config.badgeClass} px-2 py-1 rounded font-bold shrink-0`}>
+        {config.label}
       </span>
     );
   };

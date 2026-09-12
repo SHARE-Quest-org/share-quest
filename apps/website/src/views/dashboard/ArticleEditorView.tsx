@@ -4,8 +4,8 @@ import RichTextEditor from "../../components/RichTextEditor";
 import { supabase } from "../../supabase";
 import { sanitizeHtml } from "../../utils/sanitize";
 import { useApp } from "../../context/AppContext";
-import { LogoIcon, getThumbnailColor, THUMBNAIL_COLORS } from "../../App";
-import type { Article, Series } from "../../App";
+import { LogoIcon } from "../../components/icons/NavIcons";
+import { getThumbnailColor, THUMBNAIL_COLORS } from "../../types";
 
 export const ArticleEditorTabs = ({
   settingsPanel,
@@ -24,102 +24,45 @@ export const ArticleEditorTabs = ({
 
 export interface ArticleEditorPageProps {
   editingId: string | null;
-  articles: Article[];
-  setArticles: (articles: Article[]) => void;
-  seriesList: Series[];
-  currentUserId: string | null;
-  showToast: (msg: string) => void;
-  navigate: (view: string, param?: string) => void;
-  draftTitle: string;
-  setDraftTitle: (v: string) => void;
-  draftContent: string;
-  setDraftContent: (v: string) => void;
-  draftColor: string;
-  setDraftColor: (v: string) => void;
-  draftTags: string[];
-  setDraftTags: (v: string[]) => void;
-  draftSeriesId: string;
-  setDraftSeriesId: (v: string) => void;
-  draftEpisodeNumber: string;
-  setDraftEpisodeNumber: (v: string) => void;
-  draftSummary: string;
-  setDraftSummary: (v: string) => void;
-  draftTagInput: string;
-  setDraftTagInput: (v: string) => void;
-  editorSaving: boolean;
-  setEditorSaving: (v: boolean) => void;
-  editorShowPreview: boolean;
-  setEditorShowPreview: (v: boolean) => void;
-  draftThumbnailUrl: string | null;
-  setDraftThumbnailUrl: (v: string | null) => void;
-  editorThumbnailUploading: boolean;
-  setEditorThumbnailUploading: (v: boolean) => void;
 }
 
-export const ArticleEditorPage = ({
-  editingId,
-  articles,
-  setArticles,
-  seriesList,
-  currentUserId,
-  showToast,
-  navigate,
-  draftTitle,
-  setDraftTitle,
-  draftContent,
-  setDraftContent,
-  draftColor,
-  setDraftColor,
-  draftTags,
-  setDraftTags,
-  draftSeriesId,
-  setDraftSeriesId,
-  draftEpisodeNumber,
-  setDraftEpisodeNumber,
-  draftSummary,
-  setDraftSummary,
-  draftTagInput,
-  setDraftTagInput,
-  editorSaving,
-  setEditorSaving,
-  editorShowPreview,
-  setEditorShowPreview,
-  draftThumbnailUrl,
-  setDraftThumbnailUrl,
-  editorThumbnailUploading,
-  setEditorThumbnailUploading,
-}: ArticleEditorPageProps) => {
-  const { getFontSizeClass } = useApp();
+export const ArticleEditorPage = ({ editingId }: ArticleEditorPageProps) => {
+  const { articles, setArticles, seriesList, profile, showToast, navigate, getFontSizeClass } =
+    useApp();
+  const currentUserId = profile?.id ?? null;
   const editingArticle = editingId ? (articles.find((a) => a.id === editingId) ?? null) : null;
-  const [formTitle, setFormTitle] = [draftTitle, setDraftTitle];
-  const [formContent, setFormContent] = [draftContent, setDraftContent];
-  const [formColor, setFormColor] = [draftColor, setDraftColor];
-  const [tags, setTags] = [draftTags, setDraftTags];
-  const [formSeriesId, setFormSeriesId] = [draftSeriesId, setDraftSeriesId];
-  const [formEpisodeNumber, setFormEpisodeNumber] = [draftEpisodeNumber, setDraftEpisodeNumber];
-  const [formSummary, setFormSummary] = [draftSummary, setDraftSummary];
-  const [tagInput, setTagInput] = [draftTagInput, setDraftTagInput];
-  const [saving, setSaving] = [editorSaving, setEditorSaving];
-  const [showPreview, setShowPreview] = [editorShowPreview, setEditorShowPreview];
-  const [thumbnailUrl, setThumbnailUrl] = [draftThumbnailUrl, setDraftThumbnailUrl];
-  const [thumbnailUploading, setThumbnailUploading] = [
-    editorThumbnailUploading,
-    setEditorThumbnailUploading,
-  ];
+
+  const [formTitle, setFormTitle] = useState(editingArticle?.title ?? "");
+  const [formContent, setFormContent] = useState(editingArticle?.content ?? "");
+  const [formColor, setFormColor] = useState(editingArticle?.thumbnailColor ?? "blue");
+  const [tags, setTags] = useState<string[]>(editingArticle?.tags ?? []);
+  const [formSeriesId, setFormSeriesId] = useState(editingArticle?.seriesId ?? "");
+  const [formEpisodeNumber, setFormEpisodeNumber] = useState(
+    editingArticle?.episodeNumber?.toString() ?? "",
+  );
+  const [formSummary, setFormSummary] = useState(editingArticle?.summary ?? "");
+  const [tagInput, setTagInput] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [showPreview, setShowPreview] = useState(false);
+  const [thumbnailUrl, setThumbnailUrl] = useState<string | null>(
+    editingArticle?.thumbnailUrl ?? null,
+  );
+  const [thumbnailUploading, setThumbnailUploading] = useState(false);
+
   useEffect(() => {
-    setDraftTitle(editingArticle?.title ?? "");
-    setDraftContent(editingArticle?.content ?? "");
-    setDraftColor(editingArticle?.thumbnailColor ?? "blue");
-    setDraftTags(editingArticle?.tags ?? []);
-    setDraftSeriesId(editingArticle?.seriesId ?? "");
-    setDraftEpisodeNumber(editingArticle?.episodeNumber?.toString() ?? "");
-    setDraftThumbnailUrl(editingArticle?.thumbnailUrl ?? null);
-    setDraftSummary(editingArticle?.summary ?? "");
-    setDraftTagInput("");
-    setEditorSaving(false);
-    setEditorShowPreview(false);
-    setEditorThumbnailUploading(false);
-  }, [editingId]);
+    setFormTitle(editingArticle?.title ?? "");
+    setFormContent(editingArticle?.content ?? "");
+    setFormColor(editingArticle?.thumbnailColor ?? "blue");
+    setTags(editingArticle?.tags ?? []);
+    setFormSeriesId(editingArticle?.seriesId ?? "");
+    setFormEpisodeNumber(editingArticle?.episodeNumber?.toString() ?? "");
+    setThumbnailUrl(editingArticle?.thumbnailUrl ?? null);
+    setFormSummary(editingArticle?.summary ?? "");
+    setTagInput("");
+    setSaving(false);
+    setShowPreview(false);
+    setThumbnailUploading(false);
+  }, [editingId, editingArticle]);
 
   const ALLOWED_THUMBNAIL_TYPES: Record<string, string> = {
     "image/jpeg": "jpg",

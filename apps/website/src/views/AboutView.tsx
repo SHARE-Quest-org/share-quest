@@ -1,6 +1,6 @@
 import imgTitle from "../assets/117_20260501195729.png";
 import { useApp } from "../context/AppContext";
-import { LogoIcon } from "../App";
+import { LogoIcon } from "../components/icons/NavIcons";
 
 export const AboutView = () => {
   const { navigate } = useApp();

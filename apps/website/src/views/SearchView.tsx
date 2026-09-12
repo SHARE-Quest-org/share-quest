@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useApp } from "../context/AppContext";
-import { CustomUserIcon, CustomSearchIcon, MOCK_TAGS } from "../App";
+import { CustomUserIcon, CustomSearchIcon } from "../components/icons/NavIcons";
+import { MOCK_TAGS } from "../types";
 import { ArticleCard } from "../components/ArticleCard";
 import { X } from "lucide-react";
 
@@ -11,22 +12,27 @@ export const SearchView = () => {
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [selectedWriterIds, setSelectedWriterIds] = useState<string[]>([]);
 
-  const allTags = Array.from(new Set(articles.flatMap((a) => a.tags ?? []))).filter(Boolean);
-  const displayTags = allTags.length > 0 ? allTags : MOCK_TAGS;
+  const displayTags = useMemo(() => {
+    const allTags = Array.from(new Set(articles.flatMap((a) => a.tags ?? []))).filter(Boolean);
+    return allTags.length > 0 ? allTags : MOCK_TAGS;
+  }, [articles]);
 
-  const results = articles.filter((a) => {
-    if (a.status !== "published") return false;
-    if (
-      keyword &&
-      !a.title.toLowerCase().includes(keyword.toLowerCase()) &&
-      !(a.content ?? "").toLowerCase().includes(keyword.toLowerCase())
-    )
-      return false;
-    if (selectedTags.length > 0 && !selectedTags.some((t) => (a.tags ?? []).includes(t)))
-      return false;
-    if (selectedWriterIds.length > 0 && !selectedWriterIds.includes(a.writerId)) return false;
-    return true;
-  });
+  const results = useMemo(() => {
+    const lowerKeyword = keyword.trim().toLowerCase();
+    return articles.filter((a) => {
+      if (a.status !== "published") return false;
+      if (
+        lowerKeyword &&
+        !a.title.toLowerCase().includes(lowerKeyword) &&
+        !(a.content ?? "").toLowerCase().includes(lowerKeyword)
+      )
+        return false;
+      if (selectedTags.length > 0 && !selectedTags.some((t) => (a.tags ?? []).includes(t)))
+        return false;
+      if (selectedWriterIds.length > 0 && !selectedWriterIds.includes(a.writerId)) return false;
+      return true;
+    });
+  }, [articles, keyword, selectedTags, selectedWriterIds]);
 
   const toggleTag = (tag: string) =>
     setSelectedTags((prev) =>
@@ -150,5 +156,3 @@ export const SearchView = () => {
     </div>
   );
 };
-
-// --- WritersView ---

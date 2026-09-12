@@ -1,5 +1,5 @@
 import { useApp } from "../context/AppContext";
-import { CustomStarIcon } from "../App";
+import { CustomStarIcon } from "../components/icons/NavIcons";
 import { ArticleCard } from "../components/ArticleCard";
 
 export const FavoritesView = () => {
@@ -47,5 +47,3 @@ export const FavoritesView = () => {
     </div>
   );
 };
-
-// --- SettingsView ---

@@ -1,5 +1,5 @@
 import { useApp } from "../context/AppContext";
-import { LogoIcon, CustomUserIcon } from "../App";
+import { LogoIcon, CustomUserIcon } from "../components/icons/NavIcons";
 import { ArticleCard } from "../components/ArticleCard";
 import { ChevronLeft } from "lucide-react";
 

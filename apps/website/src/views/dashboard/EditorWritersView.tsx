@@ -3,7 +3,10 @@ import { supabase } from "../../supabase";
 import { ChevronLeft } from "lucide-react";
 import type { Profile } from "../../supabase";
 import { useNavigate } from "react-router-dom";
+import { useApp } from "../../context/AppContext";
+
 export function EditorWritersView() {
+  const { showToast } = useApp();
   const [allProfiles, setAllProfiles] = useState<Profile[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchEmail, setSearchEmail] = useState("");
@@ -37,10 +40,11 @@ export function EditorWritersView() {
     });
 
     if (rpcError) {
-      alert("ロールの変更に失敗しました: " + rpcError.message);
+      showToast("ロールの変更に失敗しました: " + rpcError.message);
       return;
     }
     setAllProfiles(allProfiles.map((w) => (w.id === id ? { ...w, role } : w)));
+    showToast("ロールを変更しました");
   };
 
   const promoteWriter = async (email: string) => {
@@ -53,7 +57,7 @@ export function EditorWritersView() {
     });
 
     if (rpcError) {
-      alert("ライターの昇格に失敗しました: " + rpcError.message);
+      showToast("ライターの昇格に失敗しました: " + rpcError.message);
       return;
     }
 
@@ -64,7 +68,7 @@ export function EditorWritersView() {
           ? prev.map((w) => (w.id === updated.id ? updated : w))
           : [...prev, updated],
       );
-      alert(
+      showToast(
         `${updated.display_name ?? (updated.username ? `@${updated.username}` : (updated.email ?? updated.id))} をライターに昇格しました`,
       );
     }

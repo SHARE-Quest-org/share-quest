@@ -17,7 +17,8 @@ export const LoginView = () => {
     }
   }, []);
 
-  const handleLogin = async () => {
+  const handleLogin = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
     setLoading(true);
     setError("");
     const { error: loginErr } = await supabase.auth.signInWithPassword({ email, password });
@@ -71,7 +72,7 @@ export const LoginView = () => {
       <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-8 w-full max-w-sm">
         <h1 className="text-2xl font-bold text-center mb-6">ログイン</h1>
         {error && <p className="text-red-500 text-sm mb-4 text-center">{error}</p>}
-        <div className="space-y-4">
+        <form onSubmit={handleLogin} className="space-y-4">
           <input
             type="email"
             placeholder="メールアドレス"
@@ -89,6 +90,7 @@ export const LoginView = () => {
             />
             <div className="text-right">
               <button
+                type="button"
                 onClick={() => navigate("forgotPassword")}
                 className="text-xs text-blue-600 hover:underline font-bold"
               >
@@ -97,13 +99,15 @@ export const LoginView = () => {
             </div>
           </div>
           <button
-            onClick={handleLogin}
+            type="submit"
             disabled={loading}
             className="w-full py-3 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700 disabled:opacity-50"
           >
             {loading ? "ログイン中..." : "ログイン"}
           </button>
+        </form>
 
+        <div className="space-y-4 mt-4">
           <div className="relative my-4 flex py-1 items-center">
             <div className="flex-grow border-t border-gray-200"></div>
             <span className="flex-shrink mx-4 text-gray-400 text-xs font-bold">または</span>

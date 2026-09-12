@@ -16,7 +16,8 @@ export const ResetPasswordView = () => {
     });
   }, []);
 
-  const handleResetPassword = async () => {
+  const handleResetPassword = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
     if (password.length < 6) {
       setError("パスワードは6文字以上で入力してください");
       return;
@@ -76,7 +77,7 @@ export const ResetPasswordView = () => {
           新しいパスワードを入力してください
         </p>
         {error && <p className="text-red-500 text-sm mb-4 text-center">{error}</p>}
-        <div className="space-y-4">
+        <form onSubmit={handleResetPassword} className="space-y-4">
           <input
             type="password"
             placeholder="新しいパスワード（6文字以上）"
@@ -92,13 +93,13 @@ export const ResetPasswordView = () => {
             className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
           <button
-            onClick={handleResetPassword}
+            type="submit"
             disabled={loading}
             className="w-full py-3 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700 disabled:opacity-50"
           >
             {loading ? "更新中..." : "パスワードを更新"}
           </button>
-        </div>
+        </form>
       </div>
     </div>
   );
