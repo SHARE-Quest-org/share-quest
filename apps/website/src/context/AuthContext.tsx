@@ -26,11 +26,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [authLoading, setAuthLoading] = useState(true);
   const [mfaChallengeRequired, setMfaChallengeRequired] = useState(false);
 
-  const fetchProfile = async (
+  const fetchProfileData = async (
     userId: string,
     email?: string,
     userMetadata?: Record<string, unknown>,
-  ) => {
+  ): Promise<{ profile: Profile; role: UserRole }> => {
     try {
       const { data, error } = await supabase
         .from("profiles")
@@ -39,12 +39,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         .maybeSingle();
 
       if (!error && data) {
-        setProfile({
-          ...data,
-          email: email || user?.email || "",
-        });
-        setUserRole((data.role as UserRole) || "viewer");
-        return;
+        return {
+          profile: {
+            ...data,
+            email: email || user?.email || "",
+          },
+          role: (data.role as UserRole) || "viewer",
+        };
       }
     } catch (e) {
       console.warn("Failed to fetch profile from DB, using fallback", e);
@@ -65,92 +66,61 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       avatar_url: (userMetadata?.avatar_url as string) || null,
       bio: null,
     };
-    setProfile(fallbackProfile);
-    setUserRole("viewer");
+    return { profile: fallbackProfile, role: "viewer" };
   };
 
   const refreshProfile = async () => {
-    if (user?.id) {
-      await fetchProfile(user.id, user.email, user.user_metadata);
-    }
+    if (!user?.id) return;
+    const { profile: updatedProfile, role } = await fetchProfileData(
+      user.id,
+      user.email,
+      user.user_metadata,
+    );
+    setProfile(updatedProfile);
+    setUserRole(role);
   };
 
+  // 1. 初回セッション復元 & 認証イベントリスナー（デッドロック完全防止）
   useEffect(() => {
     let isMounted = true;
 
-    const applySession = async (session: { user: User } | null) => {
+    // getSession によるセッション初期復元
+    supabase.auth
+      .getSession()
+      .then(({ data: { session } }) => {
+        if (!isMounted) return;
+        if (session?.user) {
+          setUser(session.user);
+        } else {
+          setUser(null);
+          setProfile(null);
+          setUserRole("guest");
+        }
+      })
+      .catch((e) => {
+        console.error("Auth getSession error", e);
+      })
+      .finally(() => {
+        if (isMounted) {
+          setAuthLoading(false);
+        }
+      });
+
+    // onAuthStateChange（Supabase内部ロック解放のためコールバック内では同期処理のみ実行）
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((event, session) => {
       if (!isMounted) return;
 
-      if (session?.user) {
-        setUser(session.user);
-        await fetchProfile(session.user.id, session.user.email, session.user.user_metadata);
-
-        // AAL2 / MFA チェック（不要なリロード時全画面ブロックを防止）
-        try {
-          const { data: aalData } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
-          if (aalData?.currentLevel === "aal2") {
-            if (isMounted) setMfaChallengeRequired(false);
-          }
-        } catch (mfaErr) {
-          console.warn("MFA level check error", mfaErr);
-        }
-      } else {
+      if (event === "SIGNED_OUT" || !session?.user) {
         setUser(null);
         setProfile(null);
         setUserRole("guest");
-        setMfaChallengeRequired(false);
-      }
-    };
-
-    const initAuth = async () => {
-      try {
-        const {
-          data: { session },
-        } = await supabase.auth.getSession();
-
-        if (isMounted) {
-          await applySession(session);
-        }
-      } catch (e) {
-        console.error("Auth initialization error", e);
-      } finally {
-        if (isMounted) {
-          setAuthLoading(false);
-        }
-      }
-    };
-
-    void initAuth();
-
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if (!isMounted) return;
-
-      // INITIAL_SESSION で session が null の場合は initAuth の getSession() に委ねる
-      if (event === "INITIAL_SESSION") {
-        if (session?.user) {
-          await applySession(session);
-          setAuthLoading(false);
-        }
-        return;
-      }
-
-      if (event === "SIGNED_OUT") {
-        await applySession(null);
         setAuthLoading(false);
         return;
       }
 
-      if (event === "SIGNED_IN" || event === "TOKEN_REFRESHED" || event === "USER_UPDATED") {
-        await applySession(session);
-        setAuthLoading(false);
-        return;
-      }
-
-      if (session?.user) {
-        await applySession(session);
-      }
+      setUser(session.user);
       setAuthLoading(false);
     });
 
@@ -159,6 +129,58 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       subscription.unsubscribe();
     };
   }, []);
+
+  // 2. ユーザー確定時のプロファイル取得（Reactライフサイクル内で独立して安全に非同期実行）
+  useEffect(() => {
+    let isMounted = true;
+
+    if (!user?.id) {
+      setProfile(null);
+      setUserRole("guest");
+      return;
+    }
+
+    // 初回フォールバック設定（画面のチラつきや未ログイン誤判定を防止）
+    const meta = user.user_metadata || {};
+    const fallbackRole: Profile["role"] =
+      meta.role === "writer" || meta.role === "editor" ? meta.role : "viewer";
+    const initialFallback: Profile = {
+      id: user.id,
+      email: user.email || "",
+      role: fallbackRole,
+      display_name:
+        (meta.display_name as string) ||
+        (meta.name as string) ||
+        (meta.full_name as string) ||
+        user.email?.split("@")[0] ||
+        "ユーザー",
+      username: (meta.username as string) || user.email?.split("@")[0] || "user",
+      avatar_url: (meta.avatar_url as string) || null,
+      bio: null,
+    };
+
+    setProfile((prev) => (prev?.id === user.id ? prev : initialFallback));
+    setUserRole((prev) => (prev !== "guest" ? prev : fallbackRole));
+
+    // DBから最新プロファイルと正式ロールを取得
+    const loadProfile = async () => {
+      const { profile: latestProfile, role: latestRole } = await fetchProfileData(
+        user.id,
+        user.email,
+        user.user_metadata,
+      );
+      if (isMounted) {
+        setProfile(latestProfile);
+        setUserRole(latestRole);
+      }
+    };
+
+    void loadProfile();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [user?.id, user?.email]);
 
   const value: AuthContextType = {
     user,
