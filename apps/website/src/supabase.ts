@@ -48,6 +48,9 @@ if (isDev && isConnectedToProductionDb) {
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
+    persistSession: true,
+    autoRefreshToken: true,
+    detectSessionInUrl: true,
     experimental: { passkey: true },
   },
 });
@@ -62,4 +65,5 @@ export interface Profile {
   username: string | null;
   avatar_url: string | null;
   bio?: string | null;
+  x_account?: string | null;
 }

@@ -35,11 +35,77 @@ const ALLOWED_ATTR = [
   "contenteditable", // CustomFrameのタイトル編集制御
 ];
 
-// 外部リンクのリバースタブナビング防止: target="_blank" のリンクに rel="noopener noreferrer" を確実に付与
+const SAFE_CSS_PROPERTIES = new Set([
+  "color",
+  "background-color",
+  "border",
+  "border-color",
+  "border-width",
+  "border-style",
+  "border-radius",
+  "text-align",
+  "font-family",
+  "font-size",
+  "font-weight",
+  "font-style",
+  "text-decoration",
+  "padding",
+  "padding-left",
+  "padding-right",
+  "padding-top",
+  "padding-bottom",
+  "margin",
+  "margin-left",
+  "margin-right",
+  "margin-top",
+  "margin-bottom",
+  "line-height",
+  "width",
+  "max-width",
+  "height",
+]);
+
+function filterSafeStyles(rawStyle: string): string {
+  const declarations = rawStyle.split(";");
+  const safeDeclarations: string[] = [];
+
+  for (const decl of declarations) {
+    const trimmed = decl.trim();
+    if (!trimmed) continue;
+    const colonIndex = trimmed.indexOf(":");
+    if (colonIndex === -1) continue;
+
+    const prop = trimmed.slice(0, colonIndex).trim().toLowerCase();
+    const val = trimmed.slice(colonIndex + 1).trim();
+
+    // Dangerous patterns in values (url, expression, javascript, fixed positioning, etc.)
+    if (/url\(|expression\(|javascript:|behavior:|binding:/i.test(val)) {
+      continue;
+    }
+
+    if (SAFE_CSS_PROPERTIES.has(prop)) {
+      safeDeclarations.push(`${prop}: ${val}`);
+    }
+  }
+
+  return safeDeclarations.join("; ");
+}
+
+// 外部リンクのリバースタブナビング防止 & style属性のプロパティ制限
 if (typeof DOMPurify?.addHook === "function") {
   DOMPurify.addHook("afterSanitizeAttributes", (node) => {
     if (node.tagName === "A" && node.getAttribute("target") === "_blank") {
       node.setAttribute("rel", "noopener noreferrer");
+    }
+
+    if (node.hasAttribute("style")) {
+      const rawStyle = node.getAttribute("style") || "";
+      const filtered = filterSafeStyles(rawStyle);
+      if (filtered) {
+        node.setAttribute("style", filtered);
+      } else {
+        node.removeAttribute("style");
+      }
     }
   });
 }

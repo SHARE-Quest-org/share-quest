@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vite-plus/test";
-import { validateContactForm } from "./validation";
+import { validateContactForm, validatePassword } from "./validation";
 
 describe("validateContactForm", () => {
   const validInput = {
@@ -48,5 +48,24 @@ describe("validateContactForm", () => {
     ).toBe(false);
     expect(validateContactForm({ ...validInput, name: "Taro\nYamada" }).isValid).toBe(false);
     expect(validateContactForm({ ...validInput, subject: "Test\r\nSubject" }).isValid).toBe(false);
+  });
+});
+
+describe("validatePassword", () => {
+  it("returns isValid: true for passwords with 8 or more characters", () => {
+    expect(validatePassword("password123").isValid).toBe(true);
+    expect(validatePassword("12345678").isValid).toBe(true);
+  });
+
+  it("rejects passwords shorter than 8 characters", () => {
+    const result = validatePassword("1234567");
+    expect(result.isValid).toBe(false);
+    expect(result.error).toContain("8文字以上");
+  });
+
+  it("rejects empty password", () => {
+    const result = validatePassword("");
+    expect(result.isValid).toBe(false);
+    expect(result.error).toBe("パスワードを入力してください");
   });
 });

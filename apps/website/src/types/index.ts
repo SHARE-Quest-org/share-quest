@@ -79,6 +79,7 @@ export interface DbArticleRow {
   summary?: string | null;
   series_id?: string | null;
   episode_number?: number | null;
+  created_at?: string | null;
 }
 
 export function mapDbArticleToArticle(a: DbArticleRow): Article {

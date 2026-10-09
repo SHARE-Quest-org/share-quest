@@ -1,8 +1,13 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { ChevronLeft } from "lucide-react";
 import { supabase } from "../supabase";
 import { validateContactForm } from "../utils/validation";
+import {
+  verifySpamCheck,
+  getRemainingCooldownSeconds,
+  recordSubmissionTimestamp,
+} from "../utils/antiSpam";
 
 export function ContactView() {
   const nav = useNavigate();
@@ -10,11 +15,46 @@ export function ContactView() {
   const [email, setEmail] = useState("");
   const [subject, setSubject] = useState("");
   const [body, setBody] = useState("");
+  const [honeypot, setHoneypot] = useState("");
+  const [loadedAt] = useState(() => Date.now());
+  const [cooldown, setCooldown] = useState(() => getRemainingCooldownSeconds());
   const [sending, setSending] = useState(false);
   const [sent, setSent] = useState(false);
   const [err, setErr] = useState("");
 
+  useEffect(() => {
+    if (cooldown <= 0) return;
+    const timer = setInterval(() => {
+      setCooldown((prev) => {
+        if (prev <= 1) {
+          clearInterval(timer);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [cooldown]);
+
   const handleSend = async () => {
+    if (cooldown > 0) {
+      setErr(`連続送信を防ぐため、あと${cooldown}秒お待ちください。`);
+      return;
+    }
+
+    const spamCheck = verifySpamCheck({ honeypotValue: honeypot, loadedAt });
+    if (spamCheck.isSpam) {
+      if (spamCheck.reason === "honeypot") {
+        // ステルス防御: ボットには成功画面を表示し、サーバーへは保存しない
+        setSent(true);
+        return;
+      }
+      if (spamCheck.reason === "too_fast") {
+        setErr("送信が早すぎます。入力内容をご確認のうえ再度お試しください。");
+        return;
+      }
+    }
+
     const validation = validateContactForm({ name, email, subject, body });
     if (!validation.isValid) {
       setErr(validation.error ?? "入力内容に誤りがあります");
@@ -42,6 +82,7 @@ export function ContactView() {
         email: email.trim(),
         subject: subject.trim(),
         body: body.trim(),
+        _hp: honeypot,
       },
     });
 
@@ -51,6 +92,8 @@ export function ContactView() {
       return;
     }
 
+    recordSubmissionTimestamp();
+    setCooldown(getRemainingCooldownSeconds());
     setSending(false);
     setSent(true);
   };
@@ -160,13 +203,39 @@ export function ContactView() {
               className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 resize-none"
             />
           </div>
+          {/* ボット対策用ハニーポットフィールド（人間には不可視） */}
+          <div
+            style={{
+              opacity: 0,
+              position: "absolute",
+              top: 0,
+              left: "-9999px",
+              height: 0,
+              width: 0,
+              overflow: "hidden",
+              zIndex: -1,
+            }}
+            aria-hidden="true"
+          >
+            <label htmlFor="_website_hp">ウェブサイト</label>
+            <input
+              id="_website_hp"
+              type="text"
+              name="_hp"
+              tabIndex={-1}
+              autoComplete="off"
+              value={honeypot}
+              onChange={(e) => setHoneypot(e.target.value)}
+            />
+          </div>
+
           {err && <p className="text-sm text-red-500">{err}</p>}
           <button
             type="submit"
-            disabled={sending}
+            disabled={sending || cooldown > 0}
             className="w-full py-3 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700 disabled:opacity-50 transition-colors"
           >
-            {sending ? "送信中..." : "送信する"}
+            {sending ? "送信中..." : cooldown > 0 ? `再送信まであと ${cooldown} 秒` : "送信する"}
           </button>
         </form>
       </div>

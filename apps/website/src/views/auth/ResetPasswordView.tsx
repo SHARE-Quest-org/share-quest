@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { supabase } from "../../supabase";
 import { useApp } from "../../context/AppContext";
+import { validatePassword } from "../../utils/validation";
 
 export const ResetPasswordView = () => {
   const [password, setPassword] = useState("");
@@ -18,8 +19,9 @@ export const ResetPasswordView = () => {
 
   const handleResetPassword = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
-    if (password.length < 6) {
-      setError("パスワードは6文字以上で入力してください");
+    const passCheck = validatePassword(password);
+    if (!passCheck.isValid) {
+      setError(passCheck.error || "パスワードは8文字以上で入力してください");
       return;
     }
     if (password !== confirmPassword) {
@@ -80,7 +82,7 @@ export const ResetPasswordView = () => {
         <form onSubmit={handleResetPassword} className="space-y-4">
           <input
             type="password"
-            placeholder="新しいパスワード（6文字以上）"
+            placeholder="新しいパスワード（8文字以上）"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"

@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { supabase } from "../supabase";
 import { X, Copy, Check, ShieldCheck, AlertCircle, Download, KeyRound } from "lucide-react";
+import { useFocusTrap } from "../hooks/useFocusTrap";
 
 interface MfaEnrollModalProps {
   isOpen?: boolean;
@@ -29,6 +30,23 @@ export const MfaEnrollModal = ({
   const [copied, setCopied] = useState(false);
 
   const enrollingRef = useRef(false);
+
+  const handleCancel = async () => {
+    if (step === "backup") {
+      handleFinish();
+      return;
+    }
+    try {
+      await supabase.rpc("clean_unverified_mfa_factors");
+    } catch {
+      // クリーンアップエラーは無視
+    }
+    onClose();
+  };
+
+  const modalRef = useFocusTrap<HTMLDivElement>(isOpen, () => {
+    void handleCancel();
+  });
 
   useEffect(() => {
     if (!isOpen) return;
@@ -196,24 +214,15 @@ export const MfaEnrollModal = ({
     onClose();
   };
 
-  const handleCancel = async () => {
-    if (step === "backup") {
-      // すでに検証成功後の場合は単に閉じる
-      handleFinish();
-      return;
-    }
-    // 未検証ファクターを安全にDB側でクリーンアップ（HTTP 404を回避）
-    try {
-      await supabase.rpc("clean_unverified_mfa_factors");
-    } catch {
-      // クリーンアップエラーは無視
-    }
-    onClose();
-  };
-
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="bg-white rounded-2xl shadow-xl border border-gray-200 w-full max-w-md overflow-hidden relative">
+      <div
+        ref={modalRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="mfa-enroll-title"
+        className="bg-white rounded-2xl shadow-xl border border-gray-200 w-full max-w-md overflow-hidden relative"
+      >
         <div className="flex items-center justify-between p-4 border-b border-gray-100 bg-gray-50/50">
           <div className="flex items-center gap-2">
             <div className="p-1.5 bg-blue-100 text-blue-600 rounded-lg">
@@ -223,12 +232,13 @@ export const MfaEnrollModal = ({
                 <ShieldCheck className="w-5 h-5" />
               )}
             </div>
-            <h3 className="font-bold text-gray-900 text-base">
+            <h3 id="mfa-enroll-title" className="font-bold text-gray-900 text-base">
               {step === "backup" ? "バックアップコードの保存" : "2要素認証 (TOTP) の設定"}
             </h3>
           </div>
           <button
             onClick={() => void handleCancel()}
+            aria-label="閉じる"
             className="p-1.5 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100 transition-colors"
           >
             <X className="w-5 h-5" />

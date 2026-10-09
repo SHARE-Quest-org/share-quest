@@ -1,9 +1,9 @@
 import { Home } from "lucide-react";
-import imgLogo from "../../assets/170805.jpg";
-import imgSearch from "../../assets/118_20260501193319.png";
-import imgUser from "../../assets/119_20260501193952.png";
-import imgStar from "../../assets/120_20260501194440.png";
-import imgSettings from "../../assets/121_20260501195446.png";
+import imgLogo from "../../assets/brand_logo.jpg";
+import imgSearch from "../../assets/nav_search.png";
+import imgUser from "../../assets/nav_user.png";
+import imgStar from "../../assets/nav_star.png";
+import imgSettings from "../../assets/nav_settings.png";
 
 export const LogoIcon = ({ className = "w-8 h-8" }: { className?: string }) => (
   <img src={imgLogo} className={`${className} object-cover rounded`} alt="Logo" />

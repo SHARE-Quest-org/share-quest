@@ -1,11 +1,11 @@
 import { useState, useEffect, useRef } from "react";
-import { ChevronLeft } from "lucide-react";
+import { ChevronLeft, Loader2 } from "lucide-react";
 import RichTextEditor from "../../components/RichTextEditor";
 import { supabase } from "../../supabase";
 import { sanitizeHtml } from "../../utils/sanitize";
 import { useApp } from "../../context/AppContext";
 import { LogoIcon } from "../../components/icons/NavIcons";
-import { getThumbnailColor, THUMBNAIL_COLORS } from "../../types";
+import { getThumbnailColor, THUMBNAIL_COLORS, mapDbArticleToArticle } from "../../types";
 
 export const ArticleEditorTabs = ({
   settingsPanel,
@@ -48,21 +48,65 @@ export const ArticleEditorPage = ({ editingId }: ArticleEditorPageProps) => {
     editingArticle?.thumbnailUrl ?? null,
   );
   const [thumbnailUploading, setThumbnailUploading] = useState(false);
+  const [editorLoading, setEditorLoading] = useState(
+    Boolean(editingId && !editingArticle?.content),
+  );
 
   useEffect(() => {
-    setFormTitle(editingArticle?.title ?? "");
-    setFormContent(editingArticle?.content ?? "");
-    setFormColor(editingArticle?.thumbnailColor ?? "blue");
-    setTags(editingArticle?.tags ?? []);
-    setFormSeriesId(editingArticle?.seriesId ?? "");
-    setFormEpisodeNumber(editingArticle?.episodeNumber?.toString() ?? "");
-    setThumbnailUrl(editingArticle?.thumbnailUrl ?? null);
-    setFormSummary(editingArticle?.summary ?? "");
-    setTagInput("");
-    setSaving(false);
-    setShowPreview(false);
-    setThumbnailUploading(false);
-  }, [editingId, editingArticle]);
+    if (!editingId) {
+      setEditorLoading(false);
+      return;
+    }
+
+    let isMounted = true;
+    const fetchArticleForEdit = async () => {
+      try {
+        const { data, error } = await supabase
+          .from("articles")
+          .select("*")
+          .eq("id", editingId)
+          .maybeSingle();
+
+        if (isMounted && data && !error) {
+          const mapped = mapDbArticleToArticle(data);
+          setFormTitle(mapped.title ?? "");
+          setFormContent(mapped.content ?? "");
+          setFormColor(mapped.thumbnailColor ?? "blue");
+          setTags(mapped.tags ?? []);
+          setFormSeriesId(mapped.seriesId ?? "");
+          setFormEpisodeNumber(mapped.episodeNumber?.toString() ?? "");
+          setThumbnailUrl(mapped.thumbnailUrl ?? null);
+          setFormSummary(mapped.summary ?? "");
+        }
+      } catch (e) {
+        console.error("Failed to load article for editing", e);
+      } finally {
+        if (isMounted) setEditorLoading(false);
+      }
+    };
+
+    void fetchArticleForEdit();
+    return () => {
+      isMounted = false;
+    };
+  }, [editingId]);
+
+  useEffect(() => {
+    if (!editingId) {
+      setFormTitle("");
+      setFormContent("");
+      setFormColor("blue");
+      setTags([]);
+      setFormSeriesId("");
+      setFormEpisodeNumber("");
+      setThumbnailUrl(null);
+      setFormSummary("");
+      setTagInput("");
+      setSaving(false);
+      setShowPreview(false);
+      setThumbnailUploading(false);
+    }
+  }, [editingId]);
 
   const ALLOWED_THUMBNAIL_TYPES: Record<string, string> = {
     "image/jpeg": "jpg",
@@ -308,6 +352,15 @@ export const ArticleEditorPage = ({ editingId }: ArticleEditorPageProps) => {
     }, 5000);
     return () => clearTimeout(timer);
   }, [formTitle, formContent, isDirty]);
+
+  if (editorLoading) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[60vh] gap-3">
+        <Loader2 className="w-8 h-8 text-blue-600 animate-spin" />
+        <p className="text-sm text-gray-500 font-medium">記事データを読み込んでいます...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">

@@ -1,14 +1,53 @@
+import { useState, useEffect, useCallback } from "react";
 import { useApp } from "../../context/AppContext";
 import { supabase } from "../../supabase";
 import { LogoIcon } from "../../components/icons/NavIcons";
-import { getThumbnailColor, ARTICLE_STATUS_CONFIG } from "../../types";
+import { getThumbnailColor, ARTICLE_STATUS_CONFIG, mapDbArticleToArticle } from "../../types";
 import type { Article, ArticleStatus } from "../../types";
-import { ChevronLeft, Plus, Edit3 } from "lucide-react";
+import { ChevronLeft, Plus, Edit3, Loader2 } from "lucide-react";
 
 export const WriterDashboard = () => {
-  const { profile, articles, setArticles, showToast, navigate } = useApp();
+  const { profile, articles, setArticles, showToast, navigate, authLoading } = useApp();
+  const [writerArticles, setWriterArticles] = useState<Article[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const myArticles = articles.filter((a) => a.writerId === profile?.id);
+  const fetchMyArticles = useCallback(async () => {
+    if (authLoading) return;
+    if (!profile?.id) {
+      setLoading(false);
+      return;
+    }
+    setLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from("articles")
+        .select(
+          "id, title, thumbnail, thumbnail_url, thumbnail_color, writer_id, views, likes, tags, is_recommended, is_popular, status, summary, series_id, episode_number, created_at",
+        )
+        .eq("writer_id", profile.id)
+        .order("created_at", { ascending: false });
+
+      if (!error && data) {
+        setWriterArticles(data.map(mapDbArticleToArticle));
+      } else {
+        setWriterArticles(articles.filter((a) => a.writerId === profile.id));
+      }
+    } catch (e) {
+      console.error("Failed to load writer articles", e);
+      setWriterArticles(articles.filter((a) => a.writerId === profile.id));
+    } finally {
+      setLoading(false);
+    }
+  }, [profile?.id, articles, authLoading]);
+
+  useEffect(() => {
+    if (!authLoading) {
+      void fetchMyArticles();
+    }
+  }, [fetchMyArticles, authLoading]);
+
+  const myArticles =
+    writerArticles.length > 0 ? writerArticles : articles.filter((a) => a.writerId === profile?.id);
 
   const openCreate = () => {
     navigate("writerNew");
@@ -27,6 +66,9 @@ export const WriterDashboard = () => {
       .update({ status: "pending" })
       .eq("id", article.id);
     if (!error) {
+      setWriterArticles((prev) =>
+        prev.map((a) => (a.id === article.id ? { ...a, status: "pending" } : a)),
+      );
       setArticles(articles.map((a) => (a.id === article.id ? { ...a, status: "pending" } : a)));
       showToast("投稿申請しました");
     } else {
@@ -38,6 +80,7 @@ export const WriterDashboard = () => {
     if (!window.confirm(`「${article.title}」を削除しますか？`)) return;
     const { error } = await supabase.from("articles").delete().eq("id", article.id);
     if (!error) {
+      setWriterArticles((prev) => prev.filter((a) => a.id !== article.id));
       setArticles(articles.filter((a) => a.id !== article.id));
       showToast("記事を削除しました");
     } else {
@@ -86,11 +129,16 @@ export const WriterDashboard = () => {
           </div>
         </div>
         <div className="space-y-3 md:grid md:grid-cols-2 md:gap-3 md:space-y-0">
-          {myArticles.length === 0 && (
+          {loading || authLoading ? (
+            <div className="flex flex-col items-center justify-center py-12 md:col-span-2 gap-2 text-gray-400">
+              <Loader2 className="w-6 h-6 animate-spin text-blue-600" />
+              <span className="text-xs">記事を読み込んでいます...</span>
+            </div>
+          ) : myArticles.length === 0 ? (
             <p className="text-sm text-gray-500 text-center py-8 bg-white rounded-xl border md:col-span-2">
               まだ記事がありません。「新規作成」から始めましょう！
             </p>
-          )}
+          ) : null}
           {myArticles.map((article) => {
             const color = getThumbnailColor(article.thumbnailColor ?? null);
             return (
