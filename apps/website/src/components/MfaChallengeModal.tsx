@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { supabase } from "../supabase";
 import { ShieldCheck, AlertCircle, LogOut, KeyRound } from "lucide-react";
+import { useFocusTrap } from "../hooks/useFocusTrap";
 
 interface MfaChallengeModalProps {
   isOpen?: boolean;
@@ -20,6 +21,12 @@ export const MfaChallengeModal = ({
   const [loading, setLoading] = useState(false);
   const [factorId, setFactorId] = useState<string | null>(null);
   const [fetchingFactor, setFetchingFactor] = useState(true);
+
+  const modalRef = useFocusTrap<HTMLDivElement>(isOpen, () => {
+    if (onCancel) {
+      onCancel();
+    }
+  });
 
   useEffect(() => {
     if (!isOpen) return;
@@ -136,7 +143,13 @@ export const MfaChallengeModal = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="bg-white rounded-2xl shadow-2xl border border-gray-200 w-full max-w-sm overflow-hidden p-6 text-center">
+      <div
+        ref={modalRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="mfa-challenge-title"
+        className="bg-white rounded-2xl shadow-2xl border border-gray-200 w-full max-w-sm overflow-hidden p-6 text-center"
+      >
         <div className="w-12 h-12 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center mx-auto mb-4">
           {mode === "backup" ? (
             <KeyRound className="w-6 h-6" />
@@ -145,7 +158,7 @@ export const MfaChallengeModal = ({
           )}
         </div>
 
-        <h2 className="text-xl font-bold text-gray-900 mb-1">
+        <h2 id="mfa-challenge-title" className="text-xl font-bold text-gray-900 mb-1">
           {mode === "backup" ? "バックアップコードでログイン" : "2段階認証の確認"}
         </h2>
         <p className="text-xs text-gray-500 mb-5 leading-relaxed">

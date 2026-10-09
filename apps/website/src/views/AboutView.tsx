@@ -1,4 +1,5 @@
-import imgTitle from "../assets/117_20260501195729.png";
+import imgTitle from "../assets/brand_title.png";
+
 import { useApp } from "../context/AppContext";
 import { LogoIcon } from "../components/icons/NavIcons";
 

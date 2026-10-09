@@ -34,3 +34,21 @@ export function validateContactForm(input: ContactFormInput): {
 
   return { isValid: true };
 }
+
+export const MIN_PASSWORD_LENGTH = 8;
+
+export function validatePassword(password: string): {
+  isValid: boolean;
+  error?: string;
+} {
+  if (!password) {
+    return { isValid: false, error: "パスワードを入力してください" };
+  }
+  if (password.length < MIN_PASSWORD_LENGTH) {
+    return {
+      isValid: false,
+      error: `パスワードは${MIN_PASSWORD_LENGTH}文字以上で入力してください`,
+    };
+  }
+  return { isValid: true };
+}

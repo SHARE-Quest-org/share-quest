@@ -1,9 +1,9 @@
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useApp } from "../../context/AppContext";
 import { supabase } from "../../supabase";
 import { ChevronLeft } from "lucide-react";
 import { ARTICLE_STATUS_CONFIG } from "../../types";
-import type { ArticleStatus } from "../../types";
+import type { ArticleStatus, Series } from "../../types";
 
 export const WriterSeriesPage = () => {
   const { profile, seriesList, setSeriesList, showToast, navigate, articles, setArticles } =
@@ -13,7 +13,34 @@ export const WriterSeriesPage = () => {
   const [newDesc, setNewDesc] = useState("");
   const [saving, setSaving] = useState(false);
   const [expandedSeriesId, setExpandedSeriesId] = useState<string | null>(null);
-  const mySeries = seriesList.filter((s) => s.writerId === profile?.id);
+  const [localSeries, setLocalSeries] = useState<Series[]>([]);
+
+  const fetchMySeries = useCallback(async () => {
+    if (!profile?.id) return;
+    try {
+      const { data, error } = await supabase.from("series").select("*").eq("writer_id", profile.id);
+
+      if (!error && data) {
+        setLocalSeries(
+          data.map((s) => ({
+            id: s.id,
+            title: s.title,
+            description: s.description ?? null,
+            writerId: s.writer_id,
+          })),
+        );
+      }
+    } catch (e) {
+      console.error("Failed to load writer series", e);
+    }
+  }, [profile?.id]);
+
+  useEffect(() => {
+    void fetchMySeries();
+  }, [fetchMySeries]);
+
+  const mySeries =
+    localSeries.length > 0 ? localSeries : seriesList.filter((s) => s.writerId === profile?.id);
 
   const handleCreate = async () => {
     if (!newTitle.trim()) {

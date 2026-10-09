@@ -1,18 +1,70 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { supabase } from "../../supabase";
 import { useApp } from "../../context/AppContext";
+import { validatePassword } from "../../utils/validation";
+import {
+  verifySpamCheck,
+  getRemainingCooldownSeconds,
+  recordSubmissionTimestamp,
+  REGISTER_COOLDOWN_KEY,
+} from "../../utils/antiSpam";
 
 export const RegisterView = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [displayName, setDisplayName] = useState("");
   const [username, setUsername] = useState("");
+  const [honeypot, setHoneypot] = useState("");
+  const [loadedAt] = useState(() => Date.now());
+  const [cooldown, setCooldown] = useState(() =>
+    getRemainingCooldownSeconds(REGISTER_COOLDOWN_KEY),
+  );
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const { navigate, showToast } = useApp();
 
+  useEffect(() => {
+    if (cooldown <= 0) return;
+    const timer = setInterval(() => {
+      setCooldown((prev) => {
+        if (prev <= 1) {
+          clearInterval(timer);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [cooldown]);
+
   const handleRegister = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
+
+    if (cooldown > 0) {
+      setError(`連続登録を防ぐため、あと${cooldown}秒お待ちください。`);
+      return;
+    }
+
+    const spamCheck = verifySpamCheck({ honeypotValue: honeypot, loadedAt });
+    if (spamCheck.isSpam) {
+      if (spamCheck.reason === "honeypot") {
+        // ステルス防御: ボットには成功したように見せかけて本登録は行わない
+        navigate("login");
+        showToast("確認メールを送信しました。メールを確認してください。");
+        return;
+      }
+      if (spamCheck.reason === "too_fast") {
+        setError("送信が早すぎます。入力内容をご確認のうえ再度お試しください。");
+        return;
+      }
+    }
+
+    const passCheck = validatePassword(password);
+    if (!passCheck.isValid) {
+      setError(passCheck.error || "パスワードは8文字以上で入力してください");
+      return;
+    }
+
     setLoading(true);
     setError("");
     const { error: signUpErr } = await supabase.auth.signUp({
@@ -23,6 +75,8 @@ export const RegisterView = () => {
     if (signUpErr) {
       setError(signUpErr.message);
     } else {
+      recordSubmissionTimestamp(REGISTER_COOLDOWN_KEY);
+      setCooldown(getRemainingCooldownSeconds(REGISTER_COOLDOWN_KEY));
       navigate("login");
       showToast("確認メールを送信しました。メールを確認してください。");
     }
@@ -35,6 +89,32 @@ export const RegisterView = () => {
         <h1 className="text-2xl font-bold text-center mb-6">アカウント登録</h1>
         {error && <p className="text-red-500 text-sm mb-4 text-center">{error}</p>}
         <form onSubmit={handleRegister} className="space-y-4">
+          {/* ボット対策ハニーポット */}
+          <div
+            style={{
+              opacity: 0,
+              position: "absolute",
+              top: 0,
+              left: "-9999px",
+              height: 0,
+              width: 0,
+              overflow: "hidden",
+              zIndex: -1,
+            }}
+            aria-hidden="true"
+          >
+            <label htmlFor="_reg_hp">Website</label>
+            <input
+              id="_reg_hp"
+              type="text"
+              name="_hp"
+              tabIndex={-1}
+              autoComplete="off"
+              value={honeypot}
+              onChange={(e) => setHoneypot(e.target.value)}
+            />
+          </div>
+
           <input
             type="text"
             placeholder="表示名 *"
@@ -58,34 +138,30 @@ export const RegisterView = () => {
           />
           <input
             type="password"
-            placeholder="パスワード（6文字以上）"
+            placeholder="パスワード（8文字以上）"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
           <button
             type="submit"
-            disabled={loading}
+            disabled={loading || cooldown > 0}
             className="w-full py-3 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700 disabled:opacity-50"
           >
-            {loading ? "登録中..." : "登録する"}
+            {loading ? "登録中..." : cooldown > 0 ? `再試行まであと ${cooldown} 秒` : "登録する"}
           </button>
         </form>
         <div className="mt-5 p-4 bg-blue-50 border border-blue-200 rounded-xl text-center">
-          <p className="text-xs text-gray-600 mb-2 font-medium">
-            ライターとして記事を書きたい方は、登録後にXでご連絡ください
+          <p className="text-xs text-gray-700 mb-2 font-medium">
+            ライターとして記事を書きたい方は、登録後に応募フォームよりご申請ください
           </p>
-          <a
-            href="https://x.com/SHARE_Quest_Off"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-1.5 px-4 py-2 bg-black text-white text-xs font-bold rounded-full hover:bg-gray-800 transition-colors"
+          <button
+            type="button"
+            onClick={() => navigate("/writer-apply")}
+            className="inline-flex items-center gap-1.5 px-4 py-2 bg-blue-600 text-white text-xs font-bold rounded-full hover:bg-blue-700 transition-colors shadow-sm"
           >
-            <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor">
-              <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.746l7.73-8.835L1.254 2.25H8.08l4.259 5.63 5.905-5.63Zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
-            </svg>
-            @SHARE_Quest_Off にDMで応募
-          </a>
+            ライター応募フォームへ
+          </button>
         </div>
         <p className="text-center text-sm text-gray-500 mt-4">
           すでにアカウントをお持ちの方は

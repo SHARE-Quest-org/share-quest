@@ -1,9 +1,27 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
+const ALLOWED_ORIGINS = [
+  "https://share-quest.vercel.app",
+  "http://localhost:5173",
+  "http://localhost:3000",
+];
+
+function getCorsHeaders(req: Request) {
+  const origin = req.headers.get("origin") || "";
+  const allowedOriginEnv = Deno.env.get("ALLOWED_ORIGIN");
+  const isAllowed =
+    ALLOWED_ORIGINS.includes(origin) ||
+    (allowedOriginEnv && origin === allowedOriginEnv) ||
+    (origin.endsWith(".vercel.app") && origin.includes("share-quest"));
+
+  return {
+    "Access-Control-Allow-Origin": isAllowed
+      ? origin
+      : allowedOriginEnv || "https://share-quest.vercel.app",
+    "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+    "Access-Control-Allow-Methods": "POST, OPTIONS",
+  };
+}
 
 function escapeHtml(str: string): string {
   return str
@@ -16,17 +34,79 @@ function escapeHtml(str: string): string {
 
 const EMAIL_REGEX = /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9-]+(?:\.[a-zA-Z0-9-]+)+$/;
 
+// In-memory rate limiting map: ip/email -> timestamps array
+const rateLimitMap = new Map<string, number[]>();
+const RATE_LIMIT_WINDOW_MS = 60 * 1000; // 1分
+const MAX_REQUESTS_PER_WINDOW = 3; // 1分間に最大3回まで
+
+function isRateLimited(key: string): boolean {
+  const now = Date.now();
+  const timestamps = (rateLimitMap.get(key) || []).filter((t) => now - t < RATE_LIMIT_WINDOW_MS);
+  if (timestamps.length >= MAX_REQUESTS_PER_WINDOW) {
+    return true;
+  }
+  timestamps.push(now);
+  rateLimitMap.set(key, timestamps);
+  return false;
+}
+
 serve(async (req) => {
+  const corsHeaders = getCorsHeaders(req);
+
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
   }
 
   try {
+    // クライアントIPの取得
+    const clientIp =
+      req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
+      req.headers.get("cf-connecting-ip") ||
+      "unknown-ip";
+
+    if (isRateLimited(`ip:${clientIp}`)) {
+      return new Response(
+        JSON.stringify({
+          error:
+            "短時間に多数のリクエストが送信されました。しばらく時間をおいて再度お試しください。",
+        }),
+        {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          status: 429,
+        },
+      );
+    }
+
     const raw = await req.json();
+
+    // ボット対策1: ハニーポットフィールドのチェック（人間には見えないダミー項目）
+    if (raw._hp || raw.honeypot || raw.website_trap) {
+      console.warn("Honeypot field triggered by bot from IP:", clientIp);
+      // ボットには成功したように見せかけて実際の送信は行わない（ステルス拒否）
+      return new Response(JSON.stringify({ ok: true }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 200,
+      });
+    }
+
     const name = typeof raw.name === "string" ? raw.name.trim() : "";
     const email = typeof raw.email === "string" ? raw.email.trim() : "";
     const subject = typeof raw.subject === "string" ? raw.subject.trim() : "";
     const body = typeof raw.body === "string" ? raw.body.trim() : "";
+
+    // メールアドレス単位のレート制限
+    if (email && isRateLimited(`email:${email}`)) {
+      return new Response(
+        JSON.stringify({
+          error:
+            "このメールアドレスから短時間に連続してお問い合わせが送信されました。しばらくお待ちください。",
+        }),
+        {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          status: 429,
+        },
+      );
+    }
 
     // Validation
     if (!name || !email || !subject || !body) {
@@ -111,8 +191,14 @@ serve(async (req) => {
       </table>
     </td></tr>
   </table>
-</body>
+ </body>
 </html>`;
+
+    const receiverEmail = Deno.env.get("CONTACT_RECEIVER_EMAIL");
+    if (!receiverEmail) {
+      console.warn("CONTACT_RECEIVER_EMAIL is not set. Defaulting to contact@share-quest.org");
+    }
+    const toEmail = receiverEmail || "contact@share-quest.org";
 
     const res = await fetch("https://api.resend.com/emails", {
       method: "POST",
@@ -122,7 +208,7 @@ serve(async (req) => {
       },
       body: JSON.stringify({
         from: "SHARE Quest <onboarding@resend.dev>",
-        to: "share.quest.official@gmail.com",
+        to: toEmail,
         reply_to: email,
         subject: `【お問い合わせ】${subject}`,
         html: adminHtml,

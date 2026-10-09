@@ -30,5 +30,18 @@
       ]
     }
   ],
-  "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }]
+  "rewrites": [
+    {
+      "source": "/articles/:id",
+      "has": [
+        {
+          "type": "header",
+          "key": "user-agent",
+          "value": "(?i).*(twitterbot|facebookexternalhit|facebot|slackbot|linkedinbot|discordbot|whatsapp|telegrambot|pinterest).*"
+        }
+      ],
+      "destination": "/api/article-ogp?id=:id"
+    },
+    { "source": "/(.*)", "destination": "/index.html" }
+  ]
 }

@@ -4,6 +4,7 @@ import { CustomUserIcon, CustomSearchIcon } from "../components/icons/NavIcons";
 import { MOCK_TAGS } from "../types";
 import { ArticleCard } from "../components/ArticleCard";
 import { X } from "lucide-react";
+import { parseSearchKeywords, matchKeywords } from "../utils/normalizeJapanese";
 
 export const SearchView = () => {
   const { articles, writers } = useApp();
@@ -17,22 +18,33 @@ export const SearchView = () => {
     return allTags.length > 0 ? allTags : MOCK_TAGS;
   }, [articles]);
 
+  const queryKeywords = useMemo(() => parseSearchKeywords(keyword), [keyword]);
+
   const results = useMemo(() => {
-    const lowerKeyword = keyword.trim().toLowerCase();
     return articles.filter((a) => {
       if (a.status !== "published") return false;
-      if (
-        lowerKeyword &&
-        !a.title.toLowerCase().includes(lowerKeyword) &&
-        !(a.content ?? "").toLowerCase().includes(lowerKeyword)
-      )
-        return false;
+
+      if (queryKeywords.length > 0) {
+        const writer = writers.find((w) => w.id === a.writerId);
+        const searchTargets = [
+          a.title,
+          a.summary,
+          a.content,
+          ...(a.tags ?? []),
+          writer?.display_name,
+          writer?.username,
+        ];
+        if (!matchKeywords(searchTargets, queryKeywords)) {
+          return false;
+        }
+      }
+
       if (selectedTags.length > 0 && !selectedTags.some((t) => (a.tags ?? []).includes(t)))
         return false;
       if (selectedWriterIds.length > 0 && !selectedWriterIds.includes(a.writerId)) return false;
       return true;
     });
-  }, [articles, keyword, selectedTags, selectedWriterIds]);
+  }, [articles, writers, queryKeywords, selectedTags, selectedWriterIds]);
 
   const toggleTag = (tag: string) =>
     setSelectedTags((prev) =>

@@ -53,4 +53,22 @@ describe("sanitizeHtml", () => {
     expect(output).not.toContain("iframe");
     expect(output).not.toContain("form");
   });
+
+  it("filters dangerous CSS properties like position and z-index from style attribute", () => {
+    const input =
+      '<p style="position: fixed; z-index: 9999; top: 0; left: 0; color: red;">Dangerous overlay</p>';
+    const output = sanitizeHtml(input);
+    expect(output).not.toContain("position");
+    expect(output).not.toContain("z-index");
+    expect(output).not.toContain("top");
+    expect(output).toContain("color: red");
+  });
+
+  it("removes url() and javascript: in style attributes", () => {
+    const input =
+      '<span style="background-color: url(https://evil.com/bg); color: blue;">Styled</span>';
+    const output = sanitizeHtml(input);
+    expect(output).not.toContain("url(");
+    expect(output).toContain("color: blue");
+  });
 });
