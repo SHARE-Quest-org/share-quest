@@ -85,17 +85,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setUser(session.user);
         await fetchProfile(session.user.id, session.user.email, session.user.user_metadata);
 
-        // AAL2 / MFA チェック
+        // AAL2 / MFA チェック（不要なリロード時全画面ブロックを防止）
         try {
           const { data: aalData } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
-          if (aalData && aalData.currentLevel === "aal1" && aalData.nextLevel === "aal2") {
-            const { data: factorsData } = await supabase.auth.mfa.listFactors();
-            const hasVerifiedFactors =
-              factorsData?.totp && factorsData.totp.some((f) => f.status === "verified");
-            if (hasVerifiedFactors && isMounted) {
-              setMfaChallengeRequired(true);
-            }
-          } else if (aalData?.currentLevel === "aal2") {
+          if (aalData?.currentLevel === "aal2") {
             if (isMounted) setMfaChallengeRequired(false);
           }
         } catch (mfaErr) {

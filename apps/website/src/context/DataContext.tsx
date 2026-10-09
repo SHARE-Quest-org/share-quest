@@ -45,7 +45,7 @@ export interface DataContextType {
 export const DataContext = createContext<DataContextType | undefined>(undefined);
 
 export function DataProvider({ children }: { children: React.ReactNode }) {
-  const { user } = useAuth();
+  const { user, authLoading } = useAuth();
   const { showToast } = useUI();
 
   const [articles, setArticles] = useState<Article[]>([]);
@@ -69,7 +69,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   const fetchArticles = useCallback(async () => {
     setArticlesLoading(true);
     try {
-      const { data, error } = await supabase
+      let res = await supabase
         .from("articles")
         .select(
           "id, title, thumbnail, thumbnail_url, thumbnail_color, writer_id, views, likes, tags, is_recommended, is_popular, status, summary, series_id, episode_number, created_at",
@@ -77,9 +77,22 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         .order("created_at", { ascending: false })
         .range(0, ARTICLE_PAGE_SIZE - 1);
 
-      if (!error && data) {
-        setArticles(data.map((item) => mapDbArticleToArticle(item)));
-        setHasMoreArticles(data.length === ARTICLE_PAGE_SIZE);
+      // 初回失敗時の安全な再試行（セッション初期化タイミングのラグ対策）
+      if (res.error) {
+        console.warn("fetchArticles first attempt failed, retrying...", res.error);
+        await new Promise((r) => setTimeout(r, 200));
+        res = await supabase
+          .from("articles")
+          .select(
+            "id, title, thumbnail, thumbnail_url, thumbnail_color, writer_id, views, likes, tags, is_recommended, is_popular, status, summary, series_id, episode_number, created_at",
+          )
+          .order("created_at", { ascending: false })
+          .range(0, ARTICLE_PAGE_SIZE - 1);
+      }
+
+      if (!res.error && res.data) {
+        setArticles(res.data.map((item) => mapDbArticleToArticle(item)));
+        setHasMoreArticles(res.data.length === ARTICLE_PAGE_SIZE);
       }
     } catch (e) {
       console.error("Failed to fetch articles", e);
@@ -119,16 +132,27 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   const fetchWriters = useCallback(async () => {
     setWritersLoading(true);
     try {
-      const { data, error } = await supabase
+      let res = await supabase
         .from("profiles")
         .select("id, role, display_name, username, avatar_url, bio, created_at")
         .in("role", ["writer", "editor"])
         .order("created_at", { ascending: false })
         .range(0, WRITER_PAGE_SIZE - 1);
 
-      if (!error && data) {
-        setWriters(data);
-        setHasMoreWriters(data.length === WRITER_PAGE_SIZE);
+      if (res.error) {
+        console.warn("fetchWriters first attempt failed, retrying...", res.error);
+        await new Promise((r) => setTimeout(r, 200));
+        res = await supabase
+          .from("profiles")
+          .select("id, role, display_name, username, avatar_url, bio, created_at")
+          .in("role", ["writer", "editor"])
+          .order("created_at", { ascending: false })
+          .range(0, WRITER_PAGE_SIZE - 1);
+      }
+
+      if (!res.error && res.data) {
+        setWriters(res.data);
+        setHasMoreWriters(res.data.length === WRITER_PAGE_SIZE);
       }
     } catch (e) {
       console.error("Failed to fetch writers", e);
@@ -165,10 +189,14 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
 
   const fetchSeries = useCallback(async () => {
     try {
-      const { data, error } = await supabase.from("series").select("*");
-      if (!error && data) {
+      let res = await supabase.from("series").select("*");
+      if (res.error) {
+        await new Promise((r) => setTimeout(r, 200));
+        res = await supabase.from("series").select("*");
+      }
+      if (!res.error && res.data) {
         setSeriesList(
-          data.map((s) => ({
+          res.data.map((s) => ({
             id: s.id,
             title: s.title,
             description: s.description ?? null,
@@ -202,7 +230,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
-  // 初期データロード
+  // 初期データロード（初回マウント時および認証セッション確定完了時）
   useEffect(() => {
     let isMounted = true;
     const init = async () => {
@@ -213,7 +241,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     return () => {
       isMounted = false;
     };
-  }, [fetchArticles, fetchWriters, fetchSeries]);
+  }, [fetchArticles, fetchWriters, fetchSeries, authLoading]);
 
   // ユーザーお気に入りロード
   useEffect(() => {
